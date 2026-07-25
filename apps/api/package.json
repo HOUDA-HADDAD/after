@@ -17,6 +17,7 @@
     "db:studio": "node scripts/prisma.mjs studio",
     "db:reset": "node scripts/prisma.mjs migrate reset --force",
     "test": "vitest run",
+    "test:anonymity": "vitest run tests/anonymity",
     "test:watch": "vitest",
     "clean": "rimraf dist .turbo coverage"
   },
@@ -32,15 +33,19 @@
     "@prisma/client": "^6",
     "fastify": "^5.2.1",
     "fastify-plugin": "^5.0.1",
+    "node-cron": "^4.6.0",
     "pino": "^9.6.0",
+    "socket.io": "^4.8.3",
     "zod": "^3.24.1"
   },
   "devDependencies": {
     "@types/node": "^22.10.5",
+    "@types/node-cron": "^3.0.11",
     "embedded-postgres": "16.14.0-beta.17",
     "light-my-request": "^6.6.0",
     "pino-pretty": "^13.0.0",
     "prisma": "^6",
+    "socket.io-client": "^4.8.3",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
     "vitest": "^3.0.5"

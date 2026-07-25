@@ -17,6 +17,16 @@ import {
   createPunishmentsService,
   type PunishmentsService,
 } from '../modules/punishments/punishments.service.js';
+import { createSessionsRepository } from '../modules/sessions/sessions.repository.js';
+import {
+  createSessionsService,
+  type SessionsService,
+} from '../modules/sessions/sessions.service.js';
+import {
+  createGameplayService,
+  type GameplayService,
+} from '../modules/sessions/gameplay.service.js';
+import { createEventBus, type EventBus } from '../lib/event-bus.js';
 
 declare module 'fastify' {
   interface FastifyInstance {
@@ -24,6 +34,9 @@ declare module 'fastify' {
     memberships: MembershipsService;
     invitations: InvitationsService;
     punishments: PunishmentsService;
+    sessions: SessionsService;
+    gameplay: GameplayService;
+    events: EventBus;
   }
 }
 
@@ -57,6 +70,8 @@ const servicesPlugin: FastifyPluginAsync<{ env: Env }> = async (app, { env }) =>
     }),
   );
 
+  const sessionsRepository = createSessionsRepository(app.prisma);
+
   app.decorate(
     'punishments',
     createPunishmentsService({
@@ -64,6 +79,25 @@ const servicesPlugin: FastifyPluginAsync<{ env: Env }> = async (app, { env }) =>
       groups: groupsRepository,
       transaction: app.transaction,
     }),
+  );
+
+  const events = createEventBus((error) => {
+    app.log.error({ err: error }, 'event listener failed');
+  });
+
+  const sessions = createSessionsService({
+    sessions: sessionsRepository,
+    groups: groupsRepository,
+    transaction: app.transaction,
+    events,
+    env,
+  });
+
+  app.decorate('events', events);
+  app.decorate('sessions', sessions);
+  app.decorate(
+    'gameplay',
+    createGameplayService({ sessions: sessionsRepository, lifecycle: sessions, events }),
   );
 };
 

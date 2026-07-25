@@ -72,6 +72,52 @@ jobs:
       - name: Build
         run: pnpm build
 
+  anonymity:
+    name: Anonymity regression
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: aftergame
+          POSTGRES_PASSWORD: aftergame
+          POSTGRES_DB: aftergame_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U aftergame"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://aftergame:aftergame@localhost:5432/aftergame_test
+      TEST_DATABASE_URL: postgresql://aftergame:aftergame@localhost:5432/aftergame_test
+      SESSION_SECRET: ci-session-secret-at-least-32-characters
+      APP_ORIGIN: http://localhost:5173
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Its own job, and a release blocker: anonymity is the product, and a leak is not something
+      # to discover among a hundred other test results.
+      - name: Anonymity regression suite
+        run: pnpm --filter @aftergame/api test:anonymity
+
   security:
     name: Security checks
     runs-on: ubuntu-latest

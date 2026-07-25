@@ -25,6 +25,12 @@ export const GROUP_ACTIONS = [
   'punishment:punish',
   'punishment:forgive',
   'punishment:list',
+  'session:read',
+  'session:create',
+  'session:join',
+  'session:leave',
+  'session:play',
+  'session:host',
 ] as const;
 
 export type GroupAction = (typeof GROUP_ACTIONS)[number];
@@ -72,6 +78,25 @@ export function can(action: GroupAction, actor: Actor, target?: Target): boolean
     // hosts, not a private list kept about people.
     case 'punishment:list':
       return true;
+
+    /**
+     * Any member may watch a game, join one, leave one, and take part in the one they joined.
+     *
+     * Whether they may join *this* game is a matter of their status and the phase, not their
+     * role: a player at three consecutive punishments is `GAME_BLOCKED` (D7) and the roster locks
+     * once the game starts (D13). Both are checked by the session service, which is where the
+     * game state lives.
+     */
+    case 'session:read':
+    case 'session:join':
+    case 'session:leave':
+    case 'session:play':
+      return true;
+
+    // Creating a game and running it are host powers, exactly as the brief specifies.
+    case 'session:create':
+    case 'session:host':
+      return isHost(actor.role);
 
     /**
      * Punishing and forgiving carry the same target asymmetry as removal — a co-host must not be

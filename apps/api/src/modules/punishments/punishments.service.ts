@@ -12,6 +12,7 @@ import type { TransactionRunner } from '../../plugins/prisma.js';
 import { requireActor } from '../groups/group-access.js';
 import { toMemberDto } from '../groups/groups.mapper.js';
 import type { GroupsRepository } from '../groups/groups.repository.js';
+import { createSessionsRepository } from '../sessions/sessions.repository.js';
 import {
   createPunishmentsRepository,
   type PunishmentsRepository,
@@ -118,6 +119,19 @@ export function createPunishmentsService({
           resultingLevel: nextLevel,
           ...(reason === undefined ? {} : { reason }),
         });
+
+        /**
+         * Flag the live game, if there is one.
+         *
+         * "After playing a normal game without punishment: reset the counter" (D5) — so a player
+         * punished *for* this game must be exempt from that reset, or the punishment would
+         * evaporate the moment it took effect and "consecutive" would mean nothing.
+         */
+        const live = await createSessionsRepository(tx).findLiveForGroup(groupId);
+
+        if (live !== null) {
+          await createSessionsRepository(tx).markPunishedThisSession(live.id, targetUserId);
+        }
       });
 
       return memberAfter(groupId, targetUserId);

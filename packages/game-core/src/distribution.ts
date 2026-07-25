@@ -23,6 +23,10 @@ import { seededRng, type Rng } from './rng.js';
  * Bounded swap-repair only pushes the counterexample further out. Treating self-assignment as a
  * forbidden edge and augmenting instead makes I5 exact rather than best-effort, at a cost that is
  * irrelevant for a party game's worth of players.
+ *
+ * The property tests then found a second, rarer failure in the same invariant — see `buildSlots`
+ * for what it was. Both bugs were invisible by reading and cost roughly one game in fifty
+ * thousand; that ratio is the argument for generated tests over examples.
  */
 
 export interface DistributableText {
@@ -56,13 +60,13 @@ export class InfeasibleDistributionError extends Error {
 }
 
 /**
- * How many capacity layouts to try before allowing self-assignment.
+ * How many traversal orders to try before allowing self-assignment.
  *
- * Which texts receive the spare uses is chosen at random, and an unlucky layout can make a
- * self-free arrangement impossible where another would allow it. Reshuffling is far cheaper than
- * reasoning about which layouts are safe.
+ * The spare capacity is allocated on demand rather than up front, so one attempt is normally
+ * enough; the retries only vary the order texts are considered in, which costs almost nothing and
+ * covers any residual order sensitivity.
  */
-const CAPACITY_ATTEMPTS = 8;
+const ATTEMPTS = 4;
 
 function validate(input: DistributionInput): void {
   const textCount = input.texts.length;
@@ -92,23 +96,28 @@ function validate(input: DistributionInput): void {
 /**
  * Spread the answer slots across the texts as evenly as possible.
  *
- * `S = Σ demand` slots over `N` texts gives every text ⌊S/N⌋ uses, with the remainder handed to
- * randomly chosen texts. Because every player's demand is at least one, `S ≥ N`, so every text
- * gets at least one use — that is I3, satisfied by construction. Total capacity is exactly `S`,
- * so a complete assignment uses every unit and I4 follows.
+ * `S = Σ demand` slots over `N` texts gives every text ⌊S/N⌋ uses, and `S mod N` texts get one
+ * more. Because every demand is at least one, `S ≥ N`, so `base ≥ 1` and every text is used —
+ * that is I3, by construction. Total capacity is exactly `S`, so a complete assignment consumes
+ * every unit and I4 follows.
+ *
+ * **Which texts get the spare use is decided during the search, not here.** Fixing it up front
+ * was a real bug: with four texts and demands 3, 3, 1, 3 the three big receivers all need the one
+ * text none of them wrote, so a self-free arrangement exists only if *that* text holds a spare.
+ * Choosing at random and retrying failed roughly once in 256 for that shape — rare enough to pass
+ * ten thousand generated games and still be wrong.
  */
 function buildSlots(texts: readonly DistributableText[], totalSlots: number, rng: Rng): TextSlot[] {
   const base = Math.floor(totalSlots / texts.length);
-  const remainder = totalSlots % texts.length;
 
-  // Shuffled before the remainder is handed out, so the texts that get an extra use are chosen
-  // by the seed rather than by whoever submitted first. The shuffle also fixes the traversal
-  // order used during augmentation.
+  // The shuffle fixes the traversal order used during augmentation, so the result depends on the
+  // seed rather than on who submitted first.
   return rng
     .shuffle(texts.map((text, originalIndex) => ({ text, originalIndex })))
-    .map((entry, position) => ({
+    .map((entry) => ({
       text: entry.text,
-      capacity: base + (position < remainder ? 1 : 0),
+      capacity: base,
+      tookSpare: false,
       holders: new Set<string>(),
       originalIndex: entry.originalIndex,
     }));
@@ -125,6 +134,9 @@ function buildSlots(texts: readonly DistributableText[], totalSlots: number, rng
 interface TextSlot {
   text: DistributableText;
   capacity: number;
+  /** Whether this text has already claimed one of the shared spare uses. At most one, so that
+   *  usage never exceeds ⌈S/N⌉ and I4 holds. */
+  tookSpare: boolean;
   holders: Set<string>;
   /** Position in the caller's text array, so output order does not depend on the shuffle. */
   originalIndex: number;
@@ -141,8 +153,11 @@ interface TextSlot {
 function tryAssign(
   input: DistributionInput,
   slots: readonly TextSlot[],
+  spareUses: number,
   forbidSelf: boolean,
 ): boolean {
+  /** The shared pool of `S mod N` extra uses, claimed by whichever texts turn out to need them. */
+  let spare = spareUses;
   // Every player is present from the outset, so the lookup below never misses.
   const holdings = new Map(input.players.map((player) => [player.id, new Set<string>()]));
   const heldBy = (playerId: string): Set<string> => holdings.get(playerId) as Set<string>;
@@ -167,6 +182,15 @@ function tryAssign(
       if (heldBy(playerId).has(slot.text.id)) continue;
 
       visited.add(slot.text.id);
+
+      // Full, but the shared pool still has a spare and this text has not claimed one yet.
+      // Claiming here — at the moment a receiver actually needs it — is what makes the search
+      // find a self-free arrangement whenever one exists for *any* legal capacity layout.
+      if (slot.capacity === 0 && spare > 0 && !slot.tookSpare) {
+        slot.capacity += 1;
+        slot.tookSpare = true;
+        spare -= 1;
+      }
 
       if (slot.capacity > 0) {
         slot.capacity -= 1;
@@ -211,10 +235,12 @@ export function distribute(input: DistributionInput): Assignment[] {
 
   if (totalSlots === 0) return [];
 
-  for (let attempt = 0; attempt < CAPACITY_ATTEMPTS; attempt += 1) {
+  const spareUses = totalSlots % input.texts.length;
+
+  for (let attempt = 0; attempt < ATTEMPTS; attempt += 1) {
     const slots = buildSlots(input.texts, totalSlots, rng);
 
-    if (tryAssign(input, slots, true)) return toAssignments(slots);
+    if (tryAssign(input, slots, spareUses, true)) return toAssignments(slots);
   }
 
   // No self-free arrangement was found. Self-assignment is explicitly permitted (D4), and
@@ -224,7 +250,7 @@ export function distribute(input: DistributionInput): Assignment[] {
   /* c8 ignore start -- Unreachable: with self-assignment permitted, every demand is at most the
      text count, which Gale–Ryser guarantees is solvable. Kept so that a future change to the
      capacity maths fails loudly instead of silently under-assigning someone. */
-  if (!tryAssign(input, slots, false)) {
+  if (!tryAssign(input, slots, spareUses, false)) {
     throw new InfeasibleDistributionError(
       'Could not distribute texts. This is a bug in the distribution algorithm.',
     );

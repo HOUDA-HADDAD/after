@@ -231,6 +231,30 @@ describe('small and awkward games', () => {
     expect(assignments).toHaveLength(10);
   });
 
+  it('finds the self-free arrangement when only one capacity layout admits it', () => {
+    // Pinned counterexample. Four texts, demands 3, 3, 1, 3: the three big receivers all need the
+    // one text none of them wrote, so a self-free arrangement exists only if *that* text holds a
+    // spare use. Allocating spare capacity up front and retrying failed roughly once in 256 here,
+    // which was rare enough to pass ten thousand generated games and still be wrong.
+    const texts: DistributableText[] = [0, 1, 2, 3].map((index) => ({
+      id: `text-${String(index)}`,
+      authorPlayerId: `player-${String(index)}`,
+    }));
+
+    const players: DistributionPlayer[] = [3, 3, 1, 3].map((demand, index) => ({
+      id: `player-${String(index)}`,
+      demand,
+    }));
+
+    // Every seed must find it now, not merely most of them.
+    for (let seed = 0; seed < 300; seed += 1) {
+      const assignments = distribute({ texts, players, seed });
+
+      expect(assignments).toHaveLength(10);
+      expect(selfAssignments(texts, assignments)).toEqual([]);
+    }
+  });
+
   it('copes with every player punished to the maximum playable level', () => {
     const game = makeGame([2, 2, 2, 2, 2], 3);
     const assignments = distribute(game);

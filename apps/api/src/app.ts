@@ -12,9 +12,13 @@ import errorHandler from './plugins/error-handler.js';
 import auth from './plugins/auth.js';
 import routePolicy from './plugins/route-policy.js';
 import services from './plugins/services.js';
+import scheduler from './jobs/scheduler.js';
+import realtime from './realtime/server.js';
 import healthRoutes from './modules/health/health.routes.js';
 import authRoutes from './modules/auth/auth.routes.js';
 import groupRoutes, { joinRoutes } from './modules/groups/groups.routes.js';
+import sessionRoutes, { groupSessionRoutes } from './modules/sessions/sessions.routes.js';
+import themeRoutes from './modules/themes/themes.routes.js';
 
 /**
  * Fields that must never reach a log line.
@@ -22,7 +26,7 @@ import groupRoutes, { joinRoutes } from './modules/groups/groups.routes.js';
  * Anonymity is the product: a log that records who submitted which text defeats it entirely.
  * We log ids, phases, durations and error codes — never content (docs/07-security.md).
  */
-const REDACTED_PATHS = [
+export const REDACTED_PATHS = [
   'req.headers.cookie',
   'req.headers.authorization',
   'res.headers["set-cookie"]',
@@ -34,6 +38,12 @@ const REDACTED_PATHS = [
   '*.password',
   '*.passwordHash',
   '*.token',
+  // Top-level too: pino's `*.x` matches one level of nesting only, so without these a value
+  // logged at the root would sail straight through.
+  'password',
+  'passwordHash',
+  'token',
+  'body',
 ];
 
 export interface BuildAppOptions {
@@ -83,6 +93,8 @@ export async function buildApp({ env, prismaClient }: BuildAppOptions): Promise<
 
   await app.register(auth, { env });
   await app.register(services, { env });
+  await app.register(scheduler, { env });
+  await app.register(realtime, { env });
 
   // Must precede every route: its onRoute hook is what makes a missing policy a boot failure.
   await app.register(routePolicy);
@@ -98,6 +110,9 @@ export async function buildApp({ env, prismaClient }: BuildAppOptions): Promise<
 
       await api.register(authRoutes, { prefix: '/auth' });
       await api.register(groupRoutes, { prefix: '/groups' });
+      await api.register(groupSessionRoutes, { prefix: '/groups' });
+      await api.register(sessionRoutes, { prefix: '/sessions' });
+      await api.register(themeRoutes, { prefix: '/themes' });
       await api.register(joinRoutes);
     },
     { prefix: '/api/v1' },

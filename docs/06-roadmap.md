@@ -96,7 +96,7 @@ transitions are rejected exhaustively; **100% branch coverage on this package**,
   re-assertion); answer draft/submit
 - Phase transitions, force-advance, completion with punishment resets, `purge_after`
 - `GET /sessions/:id/state` snapshot; timeline read model through the projection
-- Socket.IO: handshake auth, room authorization, per-socket projected emits, event bus
+- Socket.IO: handshake auth, room authorization, notification-only events, event bus
 - Scheduled jobs: purge, abandon, prune — each under an advisory lock
 
 **Exit:** an integration test plays a full 5-player game with one punished player end to end,

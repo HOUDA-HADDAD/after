@@ -15,10 +15,20 @@ export type TransactionRunner = <T>(
   work: (tx: Prisma.TransactionClient) => Promise<T>,
 ) => Promise<T>;
 
+/**
+ * Run work only if no other instance is already doing it.
+ *
+ * PostgreSQL advisory locks give job leadership for free — no extra service, no coordination
+ * protocol. Running two API instances therefore never double-purges a session or double-sweeps
+ * the abandoned ones. Returns false when another holder had it.
+ */
+export type AdvisoryLockRunner = (key: number, work: () => Promise<void>) => Promise<boolean>;
+
 declare module 'fastify' {
   interface FastifyInstance {
     prisma: PrismaClient;
     transaction: TransactionRunner;
+    withAdvisoryLock: AdvisoryLockRunner;
   }
 }
 
@@ -72,6 +82,22 @@ const prismaPlugin: FastifyPluginAsync<PrismaPluginOptions> = async (app, { env,
 
   app.decorate('prisma', prisma);
   app.decorate('transaction', ((work) => prisma.$transaction(work)) as TransactionRunner);
+
+  app.decorate('withAdvisoryLock', (async (key, work) => {
+    const [acquired] = await prisma.$queryRaw<
+      { pg_try_advisory_lock: boolean }[]
+    >`SELECT pg_try_advisory_lock(${key})`;
+
+    if (acquired?.pg_try_advisory_lock !== true) return false;
+
+    try {
+      await work();
+    } finally {
+      await prisma.$queryRaw`SELECT pg_advisory_unlock(${key})`;
+    }
+
+    return true;
+  }) as AdvisoryLockRunner);
 
   app.readiness.add('database', async () => {
     await prisma.$queryRaw`SELECT 1`;

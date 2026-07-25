@@ -136,11 +136,16 @@ stateDiagram-v2
 | `REVEAL`    | cast a private YES/NO reveal vote                                                                                                                                                     | close voting                                    |
 | `COMPLETED` | read final timeline — authors shown to **everyone** if every participant voted YES, to **nobody** otherwise ([D8](00-spec-decisions.md#d8-reveal-is-collective--unanimous-or-nobody)) | —                                               |
 
-**Distribution is the critical section.** It runs exactly once, inside a `SERIALIZABLE`
-transaction that re-reads the session row `FOR UPDATE` and asserts `status = 'WRITING'` before
-writing assignments. Concurrent "all players submitted" triggers therefore collapse into one
-winner; the losers see the session already in `ANSWERING` and no-op. The session also carries a
-`version` column for optimistic concurrency on host actions.
+**Distribution is the critical section.** It runs exactly once, inside a transaction that takes
+the session row `FOR UPDATE` and then re-asserts `status = 'WRITING'` before writing assignments.
+Concurrent "all players submitted" triggers collapse into one winner; the losers block on the
+lock, then find the session already in `ANSWERING` and no-op. A test fires twenty simultaneous
+final submissions and asserts exactly one distribution ran.
+
+> Row locking rather than `SERIALIZABLE`, which an earlier draft specified. The lock _serialises_
+> contenders; serialisable isolation instead _aborts_ them, which would mean a retry loop in
+> every caller for no additional safety. Every other phase change uses a conditional `UPDATE …
+WHERE status = $from`, which is the same idea without needing a lock at all.
 
 ## 5. Random distribution — the core algorithm
 
@@ -219,13 +224,16 @@ Socket.IO on the same HTTP server as the REST API.
 - **Rooms:** `group:{groupId}` for lobby/presence, `session:{sessionId}` for game state. Joining
   a room is authorized against membership and roster on every join, never trusted from the
   client.
-- **Projection before emit:** every payload leaving the server passes through the same
-  `projectFor(viewer)` function used by REST — the socket is not a second, laxer path. Because
-  reveal is collective ([D8](00-spec-decisions.md#d8-reveal-is-collective--unanimous-or-nobody)),
-  author entitlement is uniform across a session, so timeline payloads can be **broadcast** to the
-  session room. Payloads carrying viewer-specific data — your assignments, your draft, your own
-  guess — are still emitted **per socket**. The projection keeps its `viewer` parameter regardless,
-  so a return to per-person entitlement would be a rule change rather than a refactor.
+- **No game content travels over the socket at all.** Events carry ids, phases and counts —
+  never a text, an answer, a comment or a name. A client reacts by refetching
+  `GET /sessions/:id`, which goes through the same projection and the same authorization as any
+  other read.
+
+  This is stronger than the per-socket projection an earlier draft described, and simpler: a
+  channel that never carries identity cannot leak it, and there is no second serialization path
+  to keep in step with the first. The cost is one extra request per notification, which for a
+  party game is nothing. The anonymity suite asserts it directly.
+
 - **Write path:** clients never mutate through the socket. All writes are REST (`POST /comments`
   etc.); the service commits, publishes to the in-process event bus, and the gateway fans out.
   One code path, one authorization pass, one transaction boundary — the socket is purely a

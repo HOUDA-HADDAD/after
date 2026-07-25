@@ -22,6 +22,15 @@ describe('group authorization', () => {
       { action: 'member:list', owner: true, cohost: true, member: true },
       // Deliberately visible to everyone: accountability for hosts, not a private list.
       { action: 'punishment:list', owner: true, cohost: true, member: true },
+      // Any member may watch a game, join one, leave one and play in it. Whether they may join
+      // *this* game is a matter of status and phase, checked by the session service (D7, D13).
+      { action: 'session:read', owner: true, cohost: true, member: true },
+      { action: 'session:join', owner: true, cohost: true, member: true },
+      { action: 'session:leave', owner: true, cohost: true, member: true },
+      { action: 'session:play', owner: true, cohost: true, member: true },
+      // Creating a game and running it are host powers, exactly as the brief specifies.
+      { action: 'session:create', owner: true, cohost: true, member: false },
+      { action: 'session:host', owner: true, cohost: true, member: false },
       { action: 'group:rename', owner: true, cohost: true, member: false },
       { action: 'invitation:create', owner: true, cohost: true, member: false },
       { action: 'invitation:list', owner: true, cohost: true, member: false },
