@@ -1,0 +1,23 @@
+{
+  "name": "@aftergame/eslint-rules",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Project-specific lint rules that encode Aftergame's architectural invariants",
+  "type": "module",
+  "main": "./src/index.js",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "files": [
+    "src"
+  ],
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "clean": "rimraf .turbo coverage"
+  },
+  "devDependencies": {
+    "eslint": "^9.17.0",
+    "vitest": "^3.0.5"
+  }
+}

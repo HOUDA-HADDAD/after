@@ -1,0 +1,20 @@
+# Normalise line endings to LF in the repository and in the working tree.
+#
+# Without this, a Windows checkout rewrites files to CRLF and Prettier's `endOfLine: lf` check
+# fails for every contributor on Windows — a confusing first experience for a problem that is
+# entirely avoidable.
+* text=auto eol=lf
+
+# Generated; never worth a diff in review.
+pnpm-lock.yaml linguist-generated=true -diff
+
+# Binary assets, so Git does not attempt line-ending conversion on them.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.pdf binary

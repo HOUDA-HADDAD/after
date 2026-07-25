@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
+    <meta
+      name="description"
+      content="Aftergame — an anonymous party game for private groups of friends."
+    />
+    <title>Aftergame</title>
+    <script>
+      // Set the theme before first paint so a dark-mode user never sees a white flash.
+      // Light is the default (docs/05-user-flows.md); the stored choice always wins.
+      (() => {
+        const stored = localStorage.getItem('aftergame:theme');
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (stored === 'dark' || (stored === null && prefersDark)) {
+          document.documentElement.classList.add('dark');
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

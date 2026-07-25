@@ -1,0 +1,40 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output
+dist/
+build/
+*.tsbuildinfo
+
+# Turborepo
+.turbo/
+
+# Environment — never commit real secrets. .env.example is the documented shape.
+.env
+.env.*
+!.env.example
+
+# Test & coverage output
+coverage/
+playwright-report/
+test-results/
+blob-report/
+
+# Editors / OS
+# Project-level Claude Code settings are shareable; the .local.json overlay is personal.
+.claude/settings.local.json
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.example.json
+.idea/
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Local database volumes
+.docker-data/
