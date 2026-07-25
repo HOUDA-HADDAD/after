@@ -156,27 +156,35 @@ produce assignments `A ⊆ Texts × Players` satisfying:
 | **I4** | text usage is balanced: each text used `⌊S/N⌋` or `⌈S/N⌉` times, where `S = Σd(p)`   |
 | **I5** | _(soft)_ self-assignment is minimised, never forbidden                               |
 
-**Algorithm — degree-constrained bipartite construction (Gale–Ryser greedy):**
+**Algorithm — degree-constrained bipartite b-matching by augmenting paths:**
 
 1. Compute `S = Σ d(p)`. Give every text a capacity of `⌊S/N⌋`; distribute the remaining
    `S mod N` extra capacity to randomly chosen texts. _(Guarantees I3 and I4 by construction,
    since `S ≥ N`.)_
-2. Sort players by **descending** demand; break ties with the seeded PRNG.
-3. For each player in that order, assign the `d(p)` texts with the **greatest remaining
-   capacity**, excluding texts already given to that player, and de-prioritising the player's
-   own text. Decrement capacities.
-4. Repair pass: for each self-assignment, look for a 2-opt swap with another player that is legal
-   under I2; apply it if one exists.
+2. Treat "receiving your own text" as a **forbidden edge**, and satisfy each player's demand one
+   unit at a time, hardest first. Giving a player one more text either finds a text with spare
+   capacity, or finds a full text whose current holder can be relocated — recursively. A visited
+   set bounds the search, which therefore succeeds whenever an assignment exists.
+3. If no self-free arrangement is found, reshuffle which texts hold the spare capacity and retry
+   a bounded number of times; failing that, drop the forbidden edge. Without it the problem is
+   always solvable, because `d(p) ≤ N` (Gale–Ryser).
 
-Step 3 is precisely the greedy used in the Gale–Ryser realisability proof, so **it never gets
-stuck whenever a solution exists**, and a solution always exists because we clamped `d(p) ≤ N`.
-Complexity is `O(N² log N)`; at `N ≤ 30` that is microseconds. Determinism from the stored seed
-makes every distribution reproducible in a test.
+> **This replaced a simpler design, and the reason is worth keeping.** The original plan was the
+> descending-demand greedy from the Gale–Ryser proof, followed by a 2-opt repair pass to trade
+> away self-assignments. That greedy is genuinely sufficient for I1–I4 and never gets stuck. It
+> is **not** sufficient for I5, and the property tests proved it during Phase 5: with four texts
+> and demands 3, 3, 3, 1 a self-free arrangement exists, but the greedy reaches a state no single
+> swap can repair — and deeper bounded repair only moves the counterexample further out.
+> Modelling self-assignment as a forbidden edge makes I5 exact rather than best-effort.
+> Complexity is `O(S · N²)`; at `N ≤ 30` still comfortably under a millisecond.
 
-Property tests (`fast-check`) generate random `N ∈ [2, 40]` and random punishment levels and
-assert I1–I4 on every run, plus "zero self-assignments whenever `N ≥ 3` and all `d(p) ≤ N−1`".
-The database independently enforces I2 with a unique index on `(text_id, receiver_player_id)` —
-belt and braces, because a bug here silently ruins a game.
+Determinism comes from the stored seed: the same seed always produces byte-identical assignments,
+so a distribution can be replayed from eight bytes long after the game itself has been deleted.
+
+Property tests (`fast-check`) generate random `N ∈ [2, 40]` with random punishment levels and
+assert I1–I5 across **10,000 games**. The database independently enforces I2 with a unique index
+on `(text_id, receiver_player_id)` — belt and braces, because a bug here silently ruins a game
+rather than throwing.
 
 ## 6. Punishment state machine
 

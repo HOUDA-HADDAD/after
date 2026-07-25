@@ -7,11 +7,12 @@ with a single theme, everyone writes one anonymous text, texts are randomly redi
 players answer, the table talks — and only at the very end, only if you asked for it,
 do you find out who wrote what.
 
-> **Status: Phase 4 of 10 complete.** You can register, sign in, create a private group, invite
-> friends with a room code, manage roles, and punish or forgive members. `@aftergame/game-core` —
-> the dependency-free rules package — now exists and is held at 100% branch coverage. The
-> distribution algorithm is next. See the [roadmap](docs/06-roadmap.md), and read the design
-> documents below in order.
+> **Status: Phase 5 of 10 complete.** You can register, sign in, create a private group, invite
+> friends with a room code, manage roles, and punish or forgive members. Every game rule —
+> distribution, phases, and the anonymity boundary — now lives in `@aftergame/game-core`: no
+> dependencies, 100% branch coverage, and its invariants asserted across 10,000 generated games.
+> Wiring it to sessions and real-time is next. See the [roadmap](docs/06-roadmap.md), and read
+> the design documents below in order.
 
 ---
 

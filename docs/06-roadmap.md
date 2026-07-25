@@ -79,7 +79,9 @@ user.
 The highest-value phase, and entirely testable without a database or a browser.
 
 - `rng.ts` seeded PRNG; `phases.ts` transition table and guards
-- `distribution.ts` — Gale–Ryser greedy + repair pass
+- `distribution.ts` — bipartite b-matching by augmenting paths, with self-assignment modelled as
+  a forbidden edge (the greedy the design sketched satisfies I1–I4 but not I5; see
+  [01 §5](01-architecture.md#5-random-distribution--the-core-algorithm))
 - `visibility.ts` — entitlement + projection for texts, answers, comments, guesses, timelines
 - Property tests with fast-check across `N ∈ [2, 40]` × random punishment levels
 
