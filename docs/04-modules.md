@@ -108,11 +108,15 @@ by anyone on day one:
 ```
 modules/sessions/
 ├── sessions.routes.ts        # HTTP surface: Zod schemas in, DTOs out, no logic
-├── sessions.service.ts       # use cases, transactions, authorize() calls, events
+├── sessions.service.ts       # use cases, transactions, assertCan() calls, events
 ├── sessions.repository.ts    # Prisma only; returns entities
-├── sessions.policy.ts        # who may do what, in which phase
 └── sessions.mapper.ts        # entity → DTO, via game-core/visibility
 ```
+
+**Policies are central, not per-module.** An earlier draft gave each module its own
+`*.policy.ts`; in practice the rules are one small matrix over one closed action union, and
+splitting it across files would have made "who can remove a co-host?" a question you answer by
+reading four files. It lives in `src/lib/authorize.ts`, and module services call `assertCan`.
 
 **Feature slice anatomy** on the web side is equally uniform: `routes.tsx`, `api.ts` (query
 hooks), `components/`, `hooks/`.
@@ -221,10 +225,13 @@ safe.
 
 ### `lib/authorize.ts`
 
-One policy engine: `authorize(actor, action, resource)` where actions are a closed union
-(`'session:start'`, `'member:remove'`, `'punishment:forgive'`, …). Every route declares its
-action; a test enumerates the route table and **fails if any route lacks a policy**. Forgetting
-an authorization check becomes a build failure rather than a vulnerability.
+One policy engine: `can(action, actor, target)` over a closed union of actions (`'session:start'`,
+`'member:remove'`, `'punishment:forgive'`, …). Pure and exhaustively switched, so adding an action
+without deciding who may perform it does not compile.
+
+Enforcement is declarative: every `/api` route sets `config.policy`, and `plugins/route-policy.ts`
+**refuses to start the server** if one does not — as well as attaching authentication to anything
+that is not `public`. Forgetting an authorization check is a boot failure, not a vulnerability.
 
 ---
 

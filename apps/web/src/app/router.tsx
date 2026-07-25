@@ -3,7 +3,8 @@ import { SessionProvider } from '../features/auth/SessionProvider.js';
 import { RequireAuth } from '../features/auth/RequireAuth.js';
 import LoginPage from '../features/auth/LoginPage.js';
 import RegisterPage from '../features/auth/RegisterPage.js';
-import HomePage from '../features/home/HomePage.js';
+import GroupsPage from '../features/groups/GroupsPage.js';
+import GroupDetailPage from '../features/groups/GroupDetailPage.js';
 
 /**
  * Application routes.
@@ -23,7 +24,16 @@ export function AppRouter() {
             path="/"
             element={
               <RequireAuth>
-                <HomePage />
+                <GroupsPage />
+              </RequireAuth>
+            }
+          />
+
+          <Route
+            path="/groups/:groupId"
+            element={
+              <RequireAuth>
+                <GroupDetailPage />
               </RequireAuth>
             }
           />

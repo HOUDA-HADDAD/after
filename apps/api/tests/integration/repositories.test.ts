@@ -77,7 +77,10 @@ describe('repositories', () => {
       const forAlice = await repo.listForUser(alice.id);
 
       expect(forAlice).toHaveLength(2);
-      expect(forAlice.map((group) => group.name).sort()).toEqual(['Alice one', 'Alice two']);
+      expect(forAlice.map((membership) => membership.group.name).sort()).toEqual([
+        'Alice one',
+        'Alice two',
+      ]);
     });
 
     it('counts members and excludes blocked players from the eligible roster', async () => {

@@ -52,9 +52,15 @@ list of patches.
 
 ## Authorization
 
-One policy engine, `authorize(actor, action, resource)`, with a closed union of actions. Every
-route names its action; **a meta-test enumerates the route table and fails the build if any route
-lacks a policy declaration.** Forgetting a check becomes a red CI run rather than an incident.
+One policy engine, `can(action, actor, target)` in `src/lib/authorize.ts`, over a closed union of
+actions. Adding an action without deciding who may perform it fails to compile — the switch is
+exhaustively checked.
+
+Every route under `/api` declares `config.policy`, and **a route that does not is a boot failure**,
+not a lint warning or a test someone might skip: the server refuses to start. Declaring anything
+other than `public` also attaches authentication automatically, so a route cannot claim "members
+only" and then forget to require a session. Forgetting an authorization check is the most common
+way an app like this leaks, and the cheapest moment to catch it is before the process listens.
 
 Layered checks, in order:
 

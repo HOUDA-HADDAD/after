@@ -25,7 +25,7 @@ const authRoutes: FastifyPluginAsync = async (app) => {
   app.post(
     '/register',
     {
-      config: { rateLimit: CREDENTIAL_RATE_LIMIT },
+      config: { policy: 'public', rateLimit: CREDENTIAL_RATE_LIMIT },
       schema: { response: { 201: sessionDtoJsonSchema } },
     },
     async (request, reply) => {
@@ -41,7 +41,7 @@ const authRoutes: FastifyPluginAsync = async (app) => {
   app.post(
     '/login',
     {
-      config: { rateLimit: CREDENTIAL_RATE_LIMIT },
+      config: { policy: 'public', rateLimit: CREDENTIAL_RATE_LIMIT },
       schema: { response: { 200: sessionDtoJsonSchema } },
     },
     async (request, reply) => {
@@ -58,7 +58,7 @@ const authRoutes: FastifyPluginAsync = async (app) => {
    * Logout is deliberately tolerant: it always clears the cookie and always returns 204, whether
    * or not a live session was found. Signing out should never fail.
    */
-  app.post('/logout', async (request, reply) => {
+  app.post('/logout', { config: { policy: 'public' } }, async (request, reply) => {
     await app.auth.logout(app.sessionCookie.read(request));
     app.sessionCookie.clear(reply);
 
@@ -69,7 +69,7 @@ const authRoutes: FastifyPluginAsync = async (app) => {
   app.post(
     '/logout-all',
     {
-      preHandler: (request, reply) => app.requireAuth(request, reply),
+      config: { policy: 'authenticated' },
       schema: {
         response: {
           200: {
@@ -95,7 +95,7 @@ const authRoutes: FastifyPluginAsync = async (app) => {
   app.get(
     '/me',
     {
-      preHandler: (request, reply) => app.requireAuth(request, reply),
+      config: { policy: 'authenticated' },
       schema: { response: { 200: sessionDtoJsonSchema } },
     },
     async (request, reply) => {

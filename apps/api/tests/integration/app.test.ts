@@ -99,7 +99,11 @@ describe('application skeleton', () => {
       beforeAll(async () => {
         ({ app: csrfApp } = await buildTestApp({
           routes: (instance) => {
-            instance.post('/api/v1/__csrf-probe', async () => ({ ok: true }));
+            // Every /api route must declare a policy or the app refuses to boot — including
+            // this one. See src/plugins/route-policy.ts.
+            instance.post('/api/v1/__csrf-probe', { config: { policy: 'public' } }, async () => ({
+              ok: true,
+            }));
           },
         }));
         await csrfApp.ready();

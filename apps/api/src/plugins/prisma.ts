@@ -1,11 +1,24 @@
 import fp from 'fastify-plugin';
 import { PrismaClient } from '@prisma/client';
+import type { Prisma } from '@prisma/client';
 import type { FastifyInstance, FastifyPluginAsync } from 'fastify';
 import type { Env } from '@aftergame/config';
+
+/**
+ * Run a unit of work in one transaction.
+ *
+ * Services own transaction boundaries (docs/01-architecture.md §2) but must not hold the Prisma
+ * client — so the boundary is handed to them as a function. This also keeps `$transaction` inside
+ * the plugin that owns the client's lifecycle, which is the only place it belongs.
+ */
+export type TransactionRunner = <T>(
+  work: (tx: Prisma.TransactionClient) => Promise<T>,
+) => Promise<T>;
 
 declare module 'fastify' {
   interface FastifyInstance {
     prisma: PrismaClient;
+    transaction: TransactionRunner;
   }
 }
 
@@ -58,6 +71,7 @@ const prismaPlugin: FastifyPluginAsync<PrismaPluginOptions> = async (app, { env,
   const prisma = client ?? createClient(app, env);
 
   app.decorate('prisma', prisma);
+  app.decorate('transaction', ((work) => prisma.$transaction(work)) as TransactionRunner);
 
   app.readiness.add('database', async () => {
     await prisma.$queryRaw`SELECT 1`;

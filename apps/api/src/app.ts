@@ -10,8 +10,11 @@ import security from './plugins/security.js';
 import staticFiles from './plugins/static.js';
 import errorHandler from './plugins/error-handler.js';
 import auth from './plugins/auth.js';
+import routePolicy from './plugins/route-policy.js';
+import services from './plugins/services.js';
 import healthRoutes from './modules/health/health.routes.js';
 import authRoutes from './modules/auth/auth.routes.js';
+import groupRoutes, { joinRoutes } from './modules/groups/groups.routes.js';
 
 /**
  * Fields that must never reach a log line.
@@ -79,13 +82,23 @@ export async function buildApp({ env, prismaClient }: BuildAppOptions): Promise<
   await app.register(errorHandler, { env });
 
   await app.register(auth, { env });
+  await app.register(services, { env });
+
+  // Must precede every route: its onRoute hook is what makes a missing policy a boot failure.
+  await app.register(routePolicy);
 
   await app.register(healthRoutes);
 
   await app.register(
     async (api) => {
-      api.get('/version', async () => ({ name: 'aftergame', version: '0.1.0' }));
+      api.get('/version', { config: { policy: 'public' } }, async () => ({
+        name: 'aftergame',
+        version: '0.1.0',
+      }));
+
       await api.register(authRoutes, { prefix: '/auth' });
+      await api.register(groupRoutes, { prefix: '/groups' });
+      await api.register(joinRoutes);
     },
     { prefix: '/api/v1' },
   );

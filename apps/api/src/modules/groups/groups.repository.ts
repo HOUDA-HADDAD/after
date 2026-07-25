@@ -6,7 +6,12 @@ export interface CreateGroupInput {
   ownerId: string;
 }
 
-export type GroupWithMembership = Group & { memberships: GroupMembership[] };
+export type MembershipWithUser = GroupMembership & {
+  user: { id: string; username: string };
+};
+
+export type GroupWithCount = Group & { _count: { memberships: number } };
+export type MembershipWithGroup = GroupMembership & { group: GroupWithCount };
 
 /**
  * The worked example for the repository pattern (docs/04-modules.md).
@@ -47,12 +52,27 @@ export const createGroupsRepository = (db: DbClient) => ({
     });
   },
 
-  /** Groups the user belongs to, most recently joined first. */
-  async listForUser(userId: string): Promise<Group[]> {
-    return db.group.findMany({
-      where: { memberships: { some: { userId } } },
-      orderBy: { createdAt: 'desc' },
+  /**
+   * Groups the user belongs to, with their role and the member count.
+   *
+   * Driven from the membership side so one query answers all three questions — going from the
+   * group side would need a follow-up per group to find the viewer's own role.
+   */
+  async listForUser(userId: string): Promise<MembershipWithGroup[]> {
+    return db.groupMembership.findMany({
+      where: { userId },
+      include: { group: { include: { _count: { select: { memberships: true } } } } },
+      orderBy: { group: { createdAt: 'desc' } },
     });
+  },
+
+  async rename(groupId: string, name: string): Promise<Group> {
+    return db.group.update({ where: { id: groupId }, data: { name } });
+  },
+
+  /** Cascades to memberships, invitations, punishment events and any live session. */
+  async delete(groupId: string): Promise<void> {
+    await db.group.delete({ where: { id: groupId } });
   },
 
   /** The membership row carries the role and the group-local punishment counter. */
@@ -62,9 +82,11 @@ export const createGroupsRepository = (db: DbClient) => ({
     });
   },
 
-  async listMembers(groupId: string): Promise<GroupMembership[]> {
+  /** Ordered owner → co-hosts → members, then by join time, which is how the roster reads best. */
+  async listMembers(groupId: string): Promise<MembershipWithUser[]> {
     return db.groupMembership.findMany({
       where: { groupId },
+      include: { user: { select: { id: true, username: true } } },
       orderBy: [{ role: 'asc' }, { joinedAt: 'asc' }],
     });
   },
@@ -83,6 +105,27 @@ export const createGroupsRepository = (db: DbClient) => ({
       where: { groupId, status: MembershipStatus.ACTIVE },
       orderBy: { joinedAt: 'asc' },
     });
+  },
+
+  async addMember(groupId: string, userId: string): Promise<GroupMembership> {
+    return db.groupMembership.create({
+      data: { groupId, userId, role: GroupRole.MEMBER, status: MembershipStatus.ACTIVE },
+    });
+  },
+
+  async setRole(groupId: string, userId: string, role: GroupRole): Promise<GroupMembership> {
+    return db.groupMembership.update({
+      where: { groupId_userId: { groupId, userId } },
+      data: { role },
+    });
+  },
+
+  async removeMember(groupId: string, userId: string): Promise<void> {
+    await db.groupMembership.delete({ where: { groupId_userId: { groupId, userId } } });
+  },
+
+  async setOwner(groupId: string, ownerId: string): Promise<void> {
+    await db.group.update({ where: { id: groupId }, data: { ownerId } });
   },
 });
 

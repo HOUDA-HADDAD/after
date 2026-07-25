@@ -54,7 +54,8 @@ unknown vs known email is indistinguishable in a benchmark test.
 ## Phase 3 — Groups, membership & invitations · ~3 days
 
 - Group CRUD; membership roster; role changes; removal; self-leave; ownership transfer
-- `authorize()` policy engine, plus the meta-test asserting every route declares a policy
+- `can()` policy engine over a closed, exhaustively-checked action union; every `/api` route
+  declares `config.policy` and the app **refuses to boot** if one does not
 - Invitation generate/revoke/redeem with rate limiting and uniform failure messages
 - Web: group list, create, join-by-code, group shell with sidebar and member list
 
