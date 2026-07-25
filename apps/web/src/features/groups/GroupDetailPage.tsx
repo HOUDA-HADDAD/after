@@ -2,12 +2,13 @@ import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Copy, Gamepad2 } from 'lucide-react';
-import { Badge, Button, Card, EmptyState, Skeleton } from '@aftergame/ui';
+import { Copy } from 'lucide-react';
+import { Badge, Button, Card, Skeleton } from '@aftergame/ui';
 import { queryKeys } from '../../shared/api/queries.js';
 import { messageFor } from '../../shared/lib/error-copy.js';
 import { useGroupSubscription } from '../../shared/realtime/SocketProvider.js';
 import { useSession } from '../auth/SessionProvider.js';
+import { NewGamePanel } from '../game/NewGamePanel.js';
 import { canModerate, MemberRow } from './MemberRow.js';
 import { PunishmentHistory } from './PunishmentHistory.js';
 import {
@@ -134,12 +135,11 @@ export default function GroupDetailPage() {
         )}
       </header>
 
-      <section className="mt-6">
-        <EmptyState
-          icon={<Gamepad2 size={28} aria-hidden="true" />}
-          title="No game running"
-          description="Starting a game arrives with the game screens in the next phase."
-        />
+      <section className="mt-6" aria-labelledby="game-heading">
+        <h2 id="game-heading" className="sr-only">
+          Game
+        </h2>
+        <NewGamePanel groupId={groupId} canHost={isHost} />
       </section>
 
       {isHost && (

@@ -51,6 +51,15 @@ export interface Assignment {
   receiverPlayerId: string;
 }
 
+/**
+ * How the search treats "your own text".
+ *
+ * `forbid` rules it out entirely. `last-resort` allows it for a single unit, and only once the
+ * search has proved there is no self-free path for that unit — which is what makes "only when
+ * unavoidable" (I5) true per player rather than only per game.
+ */
+type SelfPolicy = 'forbid' | 'last-resort';
+
 /** Thrown when the input cannot be satisfied. Always a caller bug — the clamp exists to prevent it. */
 export class InfeasibleDistributionError extends Error {
   constructor(message: string) {
@@ -154,7 +163,7 @@ function tryAssign(
   input: DistributionInput,
   slots: readonly TextSlot[],
   spareUses: number,
-  forbidSelf: boolean,
+  selfPolicy: SelfPolicy,
 ): boolean {
   /** The shared pool of `S mod N` extra uses, claimed by whichever texts turn out to need them. */
   let spare = spareUses;
@@ -162,8 +171,8 @@ function tryAssign(
   const holdings = new Map(input.players.map((player) => [player.id, new Set<string>()]));
   const heldBy = (playerId: string): Set<string> => holdings.get(playerId) as Set<string>;
 
-  const allowed = (playerId: string, text: DistributableText): boolean =>
-    !(forbidSelf && text.authorPlayerId === playerId);
+  const allowed = (playerId: string, text: DistributableText, allowSelf: boolean): boolean =>
+    allowSelf || text.authorPlayerId !== playerId;
 
   const link = (playerId: string, slot: TextSlot): void => {
     slot.holders.add(playerId);
@@ -175,10 +184,10 @@ function tryAssign(
     heldBy(playerId).delete(slot.text.id);
   };
 
-  const augment = (playerId: string, visited: Set<string>): boolean => {
+  const augment = (playerId: string, visited: Set<string>, allowSelf: boolean): boolean => {
     for (const slot of slots) {
       if (visited.has(slot.text.id)) continue;
-      if (!allowed(playerId, slot.text)) continue;
+      if (!allowed(playerId, slot.text, allowSelf)) continue;
       if (heldBy(playerId).has(slot.text.id)) continue;
 
       visited.add(slot.text.id);
@@ -203,7 +212,7 @@ function tryAssign(
       for (const holderId of [...slot.holders]) {
         unlink(holderId, slot);
 
-        if (augment(holderId, visited)) {
+        if (augment(holderId, visited, allowSelf)) {
           link(playerId, slot);
           return true;
         }
@@ -220,7 +229,26 @@ function tryAssign(
 
   for (const receiver of receivers) {
     for (let unit = 0; unit < receiver.demand; unit += 1) {
-      if (!augment(receiver.id, new Set())) return false;
+      if (augment(receiver.id, new Set(), false)) continue;
+
+      /**
+       * No self-free path for *this* unit.
+       *
+       * Under `forbid` that ends the attempt. Under `last-resort` the constraint is dropped for
+       * this one unit and no further: a player owed every text in play has to receive their own,
+       * but that is their problem alone. Dropping the rule globally — which is what a single
+       * `forbidSelf` flag amounts to — hands everybody else a self-assignment they could have
+       * been spared, and D4 asks for the opposite.
+       */
+      if (selfPolicy === 'forbid') return false;
+
+      /* c8 ignore start -- Unreachable: with self-assignment permitted for this unit, and every
+         demand at most the text count, an augmenting path always exists. Kept so a future change
+         to the capacity maths fails loudly here rather than silently under-assigning someone. */
+      if (!augment(receiver.id, new Set(), true)) {
+        return false;
+      }
+      /* c8 ignore stop */
     }
   }
 
@@ -240,17 +268,17 @@ export function distribute(input: DistributionInput): Assignment[] {
   for (let attempt = 0; attempt < ATTEMPTS; attempt += 1) {
     const slots = buildSlots(input.texts, totalSlots, rng);
 
-    if (tryAssign(input, slots, spareUses, true)) return toAssignments(slots);
+    if (tryAssign(input, slots, spareUses, 'forbid')) return toAssignments(slots);
   }
 
-  // No self-free arrangement was found. Self-assignment is explicitly permitted (D4), and
-  // dropping the constraint is always solvable because every demand is at most the text count.
+  // No wholly self-free arrangement was found. Self-assignment is explicitly permitted (D4), so
+  // the last pass allows it — but one unit at a time, only where the search proves it necessary.
   const slots = buildSlots(input.texts, totalSlots, rng);
 
   /* c8 ignore start -- Unreachable: with self-assignment permitted, every demand is at most the
      text count, which Gale–Ryser guarantees is solvable. Kept so that a future change to the
      capacity maths fails loudly instead of silently under-assigning someone. */
-  if (!tryAssign(input, slots, spareUses, false)) {
+  if (!tryAssign(input, slots, spareUses, 'last-resort')) {
     throw new InfeasibleDistributionError(
       'Could not distribute texts. This is a bug in the distribution algorithm.',
     );

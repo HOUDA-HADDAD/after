@@ -79,3 +79,10 @@ export const apiPost = <TResponse>(path: string, payload?: unknown): Promise<TRe
     method: 'POST',
     ...(payload === undefined ? {} : { body: JSON.stringify(payload) }),
   });
+
+/** PUT is the idempotent half of the game API — saving a draft, changing a guess. */
+export const apiPut = <TResponse>(path: string, payload?: unknown): Promise<TResponse> =>
+  apiFetch<TResponse>(path, {
+    method: 'PUT',
+    ...(payload === undefined ? {} : { body: JSON.stringify(payload) }),
+  });

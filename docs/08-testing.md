@@ -59,6 +59,7 @@ Properties, run over generated `N ∈ [2, 40]` and random punishment level vecto
 | **P3**   | every text is assigned at least once _(I3)_                                           |
 | **P4**   | text usage is balanced within one of `⌊S/N⌋` / `⌈S/N⌉` _(I4)_                         |
 | **P5**   | zero self-assignments whenever `N ≥ 3` and every `d(p) ≤ N−1` _(I5)_                  |
+| **P5b**  | self-assignments equal the number the demands force, in _every_ shape _(I5, exact)_   |
 | **P6**   | the same seed always produces byte-identical assignments                              |
 | **P7**   | different seeds produce different assignments for `N ≥ 4` (no accidental determinism) |
 | **P8**   | `distribute` never throws for any feasible input, and never returns a partial result  |
@@ -68,6 +69,12 @@ Properties, run over generated `N ∈ [2, 40]` and random punishment level vecto
 Failing cases are shrunk automatically and pinned as regression tests. This is the single
 highest-leverage test investment in the project — the distribution algorithm is the one place
 where a subtle bug silently ruins games without throwing an error.
+
+P5b was added after the full-game suite found the case P5 could not see: when one player is
+_forced_ into a self-assignment, everyone else was being handed one too. P5 is stated over the
+region where the answer is zero, so the mixed case fell between the property and the rule. The
+lesson generalises — a property guarded by "whenever the easy conditions hold" tests the guard as
+much as the code, and the interesting inputs are usually the ones the guard excludes.
 
 ## Integration tests — Vitest + real PostgreSQL
 
@@ -187,6 +194,47 @@ teaches the team to ignore the report. Both are enforced for real in the Playwri
 behaviour they protect is asserted directly at the component level anyway: the drawer traps focus,
 closes on Escape, restores focus to its trigger, and marks the background inert.
 
+## The full-game suite — three players, one process
+
+`apps/web/tests/e2e` plays complete games through the real screens. Nothing in it is a mock: the
+Fastify app runs in the same process against a real PostgreSQL (the same two-tier helper the API
+suite uses, migrated and seeded), and each player's `fetch` carries their own session cookie to
+it. What the components render is what the projection actually produced for that viewer, so an
+anonymity assertion here is a statement about the product rather than about a fixture written to
+agree with it.
+
+Players take turns rather than sharing a screen — which is how three phones work anyway, and buys
+a second guarantee for free: every turn is a fresh mount reading the game back from the server, so
+the flow doubles as proof that a player who closes the tab returns to exactly the phase the game
+is in (F9). The three play at 320px, 768px and 1440px respectively, because three humans do not
+share a device.
+
+Two games are played: one that ends with a refusal, one that ends unanimously, since a single game
+can only demonstrate one reveal outcome.
+
+It runs under `pnpm test`, not behind a flag. A test that proves the product works and that nobody
+runs is not a test.
+
+**This is not a substitute for the browser pass below.** It exercises everything except a real
+rendering engine and a real socket: layout, contrast, focus order under a real compositor, and
+live multi-client traffic still need Playwright (Phase 9).
+
+### What it found
+
+The suite paid for itself on its first green run, with a bug three hundred property-test runs a
+day had never surfaced. Distribution treated "may I have my own text?" as one decision for the
+whole game: if any player was owed every text in play — a three-player game with someone on two
+punishments does it — the constraint was dropped for _everyone_, and roughly two games in three
+handed an unpunished player their own text back.
+
+The invariant had been stated as "no self-assignment whenever every demand leaves an alternative",
+and the property test asserted exactly that — so the mixed case, where one player is forced and
+the others are not, sat precisely in the gap between the property and the rule it was standing in
+for ([D4](00-spec-decisions.md#d4-a-player-may-receive-their-own-text--but-we-avoid-it-when-we-can)).
+The fix makes self-assignment a per-unit last resort; the property now asserts the real rule — that
+the number of self-assignments equals the number the demands force, in every shape — and fails
+within fifty runs against the old code.
+
 ## End-to-end — Playwright
 
 Three browser contexts in one test act as three players, driving real WebSocket traffic.
@@ -228,6 +276,7 @@ push / PR
   ├── lint + typecheck            ← Turborepo cached
   ├── unit + property             ← game-core coverage gate: 100% branches
   ├── integration (Postgres 16 service)
+  ├── full game (three players, real API + Postgres)
   ├── anonymity regression        ← separate job, release blocker
   ├── build (api + web)
   ├── e2e (Playwright, built artifacts)

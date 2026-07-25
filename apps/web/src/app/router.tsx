@@ -8,6 +8,7 @@ import LoginPage from '../features/auth/LoginPage.js';
 import RegisterPage from '../features/auth/RegisterPage.js';
 import GroupsPage from '../features/groups/GroupsPage.js';
 import GroupDetailPage from '../features/groups/GroupDetailPage.js';
+import GamePage from '../features/game/GamePage.js';
 import { AppShell } from '../shared/components/AppShell.js';
 import { RouteErrorBoundary } from '../shared/components/RouteErrorBoundary.js';
 import { SocketProvider } from '../shared/realtime/SocketProvider.js';
@@ -62,6 +63,15 @@ export function AppRouter() {
               element={
                 <Protected>
                   <GroupDetailPage />
+                </Protected>
+              }
+            />
+
+            <Route
+              path="/groups/:groupId/games/:sessionId"
+              element={
+                <Protected>
+                  <GamePage />
                 </Protected>
               }
             />

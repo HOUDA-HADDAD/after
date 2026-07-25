@@ -53,3 +53,23 @@
     }
   }
 }
+
+/*
+ * The timeline's stagger.
+ *
+ * `backwards` matters: without it a card is briefly visible at full opacity before its delay
+ * elapses, which reads as a flicker down the whole page. Applied via `motion-safe:` at the call
+ * site as well as being covered by the reduced-motion block above — belt and braces, because
+ * this is the one animation with enough travel to bother someone.
+ */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}

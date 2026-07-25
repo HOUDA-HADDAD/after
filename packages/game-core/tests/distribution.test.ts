@@ -30,6 +30,22 @@ function makeGame(levels: readonly PlayablePunishmentLevel[], seed: number): Dis
   return { texts, players, seed };
 }
 
+/**
+ * The fewest self-assignments this game can possibly have.
+ *
+ * A player may hold each text at most once (I2), so someone owed `d` answers out of `N` texts,
+ * one of which they wrote, can be spared their own only while `d ≤ N - 1`. Beyond that the deal
+ * is forced. Summing that over the table gives the floor — and "only when unavoidable" (I5) means
+ * the algorithm hits it exactly, not merely comes close.
+ */
+function unavoidableSelfAssignments(game: DistributionInput): number {
+  return game.players.reduce((total, player) => {
+    const wrote = game.texts.filter((text) => text.authorPlayerId === player.id).length;
+
+    return total + Math.max(0, player.demand - (game.texts.length - wrote));
+  }, 0);
+}
+
 const gameArbitrary = fc
   .integer({ min: 2, max: 40 })
   .chain((playerCount) =>
@@ -127,6 +143,33 @@ describe('distribution invariants', () => {
     );
   });
 
+  it('I5 — self-assignment never exceeds what the demands force', () => {
+    fc.assert(
+      fc.property(gameArbitrary, (game) => {
+        // The stronger statement, and the one D4 actually makes: not "none in the easy region"
+        // but "none that a legal swap could have removed", everywhere.
+        expect(selfAssignments(game.texts, distribute(game))).toHaveLength(
+          unavoidableSelfAssignments(game),
+        );
+      }),
+      { numRuns: 1_000 },
+    );
+  });
+
+  it('spares everyone else when one player is owed every text', () => {
+    // The shape that exposed the old fallback: three texts, demands 1, 3, 1. The middle player
+    // must receive their own — there is nothing else left to give them — but the other two have
+    // two alternatives each. Dropping the rule for the whole game because one player needed it
+    // handed all three a text they wrote, roughly two games in three.
+    for (let seed = 0; seed < 400; seed += 1) {
+      const game = makeGame([0, 2, 0], seed);
+      const self = selfAssignments(game.texts, distribute(game));
+
+      expect(self).toHaveLength(1);
+      expect(self[0]?.receiverPlayerId).toBe('player-1');
+    }
+  });
+
   it('produces exactly the total number of answer slots', () => {
     fc.assert(
       fc.property(gameArbitrary, (game) => {
@@ -166,13 +209,10 @@ describe('all invariants together, at volume', () => {
           expect(used).toBeLessThanOrEqual(base + 1); // I4 upper bound
         }
 
-        // I5, in the region where a self-free arrangement is guaranteed to exist.
-        if (
-          game.texts.length >= 3 &&
-          game.players.every((p) => p.demand <= game.texts.length - 1)
-        ) {
-          expect(selfAssignments(game.texts, assignments)).toEqual([]);
-        }
+        // I5 — at the floor, in every shape, not only where the floor happens to be zero.
+        expect(selfAssignments(game.texts, assignments)).toHaveLength(
+          unavoidableSelfAssignments(game),
+        );
       }),
       { numRuns: 10_000 },
     );
