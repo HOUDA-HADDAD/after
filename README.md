@@ -7,12 +7,14 @@ with a single theme, everyone writes one anonymous text, texts are randomly redi
 players answer, the table talks — and only at the very end, only if you asked for it,
 do you find out who wrote what.
 
-> **Status: Phase 6 of 10 complete — the game is playable end to end over the API.** Register,
-> create a private group, invite friends, start a themed game, write anonymously, answer texts
-> you were dealt, discuss them, guess, and vote on whether to reveal the authors. The rules live
-> in `@aftergame/game-core` (no dependencies, 100% branch coverage), and a dedicated anonymity
-> regression suite asserts on real serialized payloads. The interface comes next — Phases 7 and 8
-> build the Slack-inspired shell and the game screens. See the [roadmap](docs/06-roadmap.md).
+> **Status: Phase 7 of 10 complete — the game is playable end to end over the API, and it now has
+> a shell to live in.** Register, create a private group, invite friends, start a themed game,
+> write anonymously, answer texts you were dealt, discuss them, guess, and vote on whether to
+> reveal the authors. The rules live in `@aftergame/game-core` (no dependencies, 100% branch
+> coverage), and a dedicated anonymity regression suite asserts on real serialized payloads. The
+> interface is a Slack-style rail, sidebar and main panel with a design-token theme, light and
+> dark, that collapses to a single drawer on a phone. Phase 8 builds the game screens themselves —
+> lobby, writing, answering, timeline and reveal. See the [roadmap](docs/06-roadmap.md).
 
 ---
 

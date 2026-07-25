@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { GroupDetailDto, GroupSummaryDto } from '@aftergame/shared';
 import {
@@ -9,6 +9,7 @@ import {
 } from './helpers/render.js';
 import { AppShell } from '../src/shared/components/AppShell.js';
 import { SessionProvider } from '../src/features/auth/SessionProvider.js';
+import { setViewportWidth, VIEWPORTS } from './helpers/viewport.js';
 
 /* ---- fixtures ---------------------------------------------------------------------------- */
 
@@ -91,6 +92,7 @@ const renderShell = (route = '/groups/g1') =>
 describe('the app shell', () => {
   beforeEach(() => {
     stubApi();
+    setViewportWidth(VIEWPORTS.desktop);
   });
 
   it('renders the group rail, sidebar and main panel', async () => {
@@ -156,7 +158,148 @@ describe('the app shell', () => {
     expect(screen.queryByText('Reconnecting…')).not.toBeInTheDocument();
   });
 
+  // The three widths and both themes the design commits to, exercised as a matrix rather than as
+  // a spot check, because "works on mobile" is the claim most easily made and least often true.
+  describe.each(['light', 'dark'] as const)('responsive layout in %s mode', (theme) => {
+    beforeEach(() => {
+      localStorage.setItem('aftergame:theme', theme);
+    });
+
+    /** The theme is only meaningfully applied once the class is on the root element. */
+    const expectThemeApplied = async () => {
+      await waitFor(() => {
+        expect(document.documentElement.classList.contains('dark')).toBe(theme === 'dark');
+      });
+    };
+
+    it.each([
+      ['a 768px tablet', VIEWPORTS.tablet],
+      ['a 1440px desktop', VIEWPORTS.desktop],
+    ])('renders group and member data inline on %s', async (_label, width) => {
+      setViewportWidth(width);
+      renderShell();
+
+      const navigation = await screen.findByRole('navigation', { name: 'Groups' });
+
+      // `find`, not `get`: the landmark is on screen immediately, but the group it describes
+      // arrives with the request, so a synchronous query here would only see skeletons.
+      expect(
+        await within(navigation).findByRole('heading', { name: 'Friday Night' }),
+      ).toBeInTheDocument();
+      // Scoped to the navigation: the signed-in user's name also appears in the top bar, and an
+      // unscoped query would match either and prove neither.
+      expect(within(navigation).getByText('sarah')).toBeInTheDocument();
+      expect(within(navigation).getByText('lina')).toBeInTheDocument();
+      expect(screen.getByRole('main')).toBeInTheDocument();
+
+      // No hamburger when the navigation is already on screen.
+      expect(screen.queryByRole('button', { name: 'Open navigation' })).not.toBeInTheDocument();
+
+      await expectThemeApplied();
+    });
+
+    it('renders group and member data in the drawer on a 320px phone', async () => {
+      setViewportWidth(VIEWPORTS.phone);
+      const user = userEvent.setup();
+      renderShell();
+
+      // At phone width the navigation is deliberately off screen until asked for — the main
+      // panel is the game, and a rail would eat a third of it.
+      expect(screen.queryByRole('navigation', { name: 'Groups' })).not.toBeInTheDocument();
+
+      await user.click(await screen.findByRole('button', { name: 'Open navigation' }));
+
+      const dialog = await screen.findByRole('dialog');
+      expect(
+        await within(dialog).findByRole('heading', { name: 'Friday Night' }),
+      ).toBeInTheDocument();
+      expect(within(dialog).getByText('sarah')).toBeInTheDocument();
+      expect(within(dialog).getByText('lina')).toBeInTheDocument();
+
+      await expectThemeApplied();
+    });
+  });
+
+  describe('theming', () => {
+    it('starts light, as the brief asks', async () => {
+      renderShell();
+      await screen.findByRole('heading', { name: 'Friday Night' });
+
+      // No stored choice and no system preference for dark — light is the default, not an
+      // accident of whichever branch ran first.
+      expect(document.documentElement).not.toHaveClass('dark');
+      expect(screen.getByRole('button', { name: 'Switch to dark mode' })).toBeInTheDocument();
+    });
+
+    it('toggles to dark and remembers the choice', async () => {
+      const user = userEvent.setup();
+      renderShell();
+      await screen.findByRole('heading', { name: 'Friday Night' });
+
+      await user.click(screen.getByRole('button', { name: 'Switch to dark mode' }));
+
+      expect(document.documentElement).toHaveClass('dark');
+      expect(screen.getByRole('button', { name: 'Switch to light mode' })).toBeInTheDocument();
+      // Persisted, so the next visit does not flash the wrong theme.
+      expect(localStorage.getItem('aftergame:theme')).toBe('dark');
+
+      await user.click(screen.getByRole('button', { name: 'Switch to light mode' }));
+
+      expect(document.documentElement).not.toHaveClass('dark');
+      expect(localStorage.getItem('aftergame:theme')).toBe('light');
+    });
+  });
+
+  describe('one navigation tree', () => {
+    it('renders exactly one copy of each group link', async () => {
+      setViewportWidth(VIEWPORTS.desktop);
+      renderShell();
+
+      await screen.findByRole('heading', { name: 'Friday Night' });
+
+      // Two trees hidden by CSS would put two links here — invisible in a browser, but not to a
+      // focus trap or an audit.
+      expect(screen.getAllByRole('link', { name: 'Friday Night' })).toHaveLength(1);
+    });
+
+    it('does not strand the shell when the viewport widens with the drawer open', async () => {
+      setViewportWidth(VIEWPORTS.phone);
+      const user = userEvent.setup();
+      renderShell();
+
+      await user.click(await screen.findByRole('button', { name: 'Open navigation' }));
+      await screen.findByRole('dialog');
+
+      setViewportWidth(VIEWPORTS.desktop);
+
+      // Crossing the breakpoint unmounts the drawer. If "is the drawer open" were trusted on its
+      // own, the background would stay inert with nothing on top of it — an app that looks
+      // perfectly normal and answers no input at all.
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(screen.getByRole('main').closest('[inert]')).toBeNull();
+      expect(await screen.findByRole('navigation', { name: 'Groups' })).toBeInTheDocument();
+    });
+
+    it('reflows when the viewport changes without remounting', async () => {
+      setViewportWidth(VIEWPORTS.desktop);
+      renderShell();
+
+      expect(await screen.findByRole('navigation', { name: 'Groups' })).toBeInTheDocument();
+
+      setViewportWidth(VIEWPORTS.phone);
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Open navigation' })).toBeInTheDocument();
+      });
+      expect(screen.queryByRole('navigation', { name: 'Groups' })).not.toBeInTheDocument();
+    });
+  });
+
   describe('the mobile drawer', () => {
+    beforeEach(() => {
+      setViewportWidth(VIEWPORTS.phone);
+    });
+
     it('opens, traps focus and closes on Escape', async () => {
       const user = userEvent.setup();
       renderShell();
@@ -179,8 +322,11 @@ describe('the app shell', () => {
       await screen.findByRole('dialog');
       await user.keyboard('{Escape}');
 
-      // Losing focus to the page body after closing a dialog strands a keyboard user.
-      expect(trigger).toHaveFocus();
+      // Losing focus to the page body after closing a dialog strands a keyboard user. Radix
+      // restores it after the close completes, so this waits rather than sampling too early.
+      await waitFor(() => {
+        expect(trigger).toHaveFocus();
+      });
     });
   });
 
@@ -195,6 +341,7 @@ describe('the app shell', () => {
     });
 
     it('has no axe violations with the drawer open', async () => {
+      setViewportWidth(VIEWPORTS.phone);
       const user = userEvent.setup();
       const { baseElement } = renderShell();
 
@@ -206,6 +353,22 @@ describe('the app shell', () => {
       const violations = await findAccessibilityViolations(baseElement as HTMLElement);
 
       expect(violations, describeViolations(violations)).toEqual([]);
+    });
+
+    it('makes the background inert while the drawer is open', async () => {
+      setViewportWidth(VIEWPORTS.phone);
+      const user = userEvent.setup();
+      renderShell();
+
+      const shell = await screen.findByRole('main');
+      expect(shell.closest('[inert]')).toBeNull();
+
+      await user.click(screen.getByRole('button', { name: 'Open navigation' }));
+      await screen.findByRole('dialog');
+
+      // Radix traps focus; `inert` makes the background unreachable in the DOM itself, so the
+      // guarantee does not depend on the trap holding.
+      expect(shell.closest('[inert]')).not.toBeNull();
     });
 
     it('has no axe violations in dark mode', async () => {

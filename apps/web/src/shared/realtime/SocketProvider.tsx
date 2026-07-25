@@ -1,4 +1,13 @@
-import { createContext, use, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import {
+  createContext,
+  use,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { io, type Socket } from 'socket.io-client';
 import { queryKeys } from '../api/queries.js';
@@ -84,30 +93,37 @@ export function SocketProvider({ children }: { children: ReactNode }) {
     };
   }, [queryClient]);
 
+  /**
+   * The subscribe functions are stable for the provider's whole life, and that matters.
+   *
+   * They only touch refs, so there is nothing to close over — but if their identity changed with
+   * `connection`, every subscriber's effect would tear down and re-run on each connection blip,
+   * and rooms would be re-joined as a side effect of that churn. It would look like it worked,
+   * while the reconnect handler below was doing nothing. Keeping them stable leaves exactly one
+   * mechanism responsible for rejoining rooms, which is the one that can be tested.
+   */
+  const subscribeToGroup = useCallback((groupId: string) => {
+    groupRooms.current.add(groupId);
+    socketRef.current?.emit('subscribe:group', groupId);
+
+    return () => {
+      groupRooms.current.delete(groupId);
+    };
+  }, []);
+
+  const subscribeToSession = useCallback((sessionId: string) => {
+    sessionRooms.current.add(sessionId);
+    socketRef.current?.emit('subscribe:session', sessionId);
+
+    return () => {
+      sessionRooms.current.delete(sessionId);
+      socketRef.current?.emit('unsubscribe:session', sessionId);
+    };
+  }, []);
+
   const value = useMemo<SocketContextValue>(
-    () => ({
-      connection,
-
-      subscribeToGroup(groupId) {
-        groupRooms.current.add(groupId);
-        socketRef.current?.emit('subscribe:group', groupId);
-
-        return () => {
-          groupRooms.current.delete(groupId);
-        };
-      },
-
-      subscribeToSession(sessionId) {
-        sessionRooms.current.add(sessionId);
-        socketRef.current?.emit('subscribe:session', sessionId);
-
-        return () => {
-          sessionRooms.current.delete(sessionId);
-          socketRef.current?.emit('unsubscribe:session', sessionId);
-        };
-      },
-    }),
-    [connection],
+    () => ({ connection, subscribeToGroup, subscribeToSession }),
+    [connection, subscribeToGroup, subscribeToSession],
   );
 
   return <SocketContext value={value}>{children}</SocketContext>;

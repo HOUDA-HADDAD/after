@@ -148,6 +148,45 @@ leak is defined by what crosses the wire.
 A5 and A11 are the ones that would realistically regress during refactoring, which is exactly why
 they are pinned.
 
+## Component tests — Vitest + happy-dom + Testing Library
+
+Frontend tests render the real component tree — real router, real query client, real socket
+provider — and stub only the network at `fetch` and the transport at `io()`. Queries go by role
+and accessible name, so a test that passes is also evidence the markup is reachable.
+
+Two doubles are worth naming, because a lazier version of either would make a whole class of test
+vacuous:
+
+- **`matchMedia`** is implemented, not stubbed. happy-dom has none, and a stub answering `false`
+  would make every breakpoint assertion pass without testing anything. Ours parses the query and
+  notifies subscribers, so a test can change the viewport mid-test and assert the layout reflows.
+- **The socket** is a double the test drives from the server side, not a spy. The reconnect
+  contract — replay the room subscriptions, invalidate the cache — is ours rather than
+  Socket.IO's, and it can only be observed by making the server say `connect` a second time.
+
+### The two accessibility layers, and why there are two
+
+axe runs at both levels, and the split is deliberate.
+
+| Layer                 | Runs on         | Catches                                                      |
+| --------------------- | --------------- | ------------------------------------------------------------ |
+| Component (happy-dom) | every component | roles, names, labels, landmarks, ARIA wiring — fast, on save |
+| E2E (Playwright, E14) | every route     | everything, including what needs a real rendering engine     |
+
+Two rules are disabled **in the component layer only**, because happy-dom cannot evaluate them —
+not because the app fails them:
+
+- `color-contrast` needs computed styles, and happy-dom computes none.
+- `aria-hidden-focus` needs real focusability. An open modal marks the background `aria-hidden`
+  and `inert`; a browser then reports that subtree as unfocusable, but happy-dom does not
+  implement `inert`, so axe sees an aria-hidden subtree full of focusable links. Radix's own
+  focus-guard sentinels (`tabindex="0"` plus `aria-hidden`, by design) trip the same rule.
+
+Leaving a rule enabled where it cannot be evaluated produces failures nobody can act on, and
+teaches the team to ignore the report. Both are enforced for real in the Playwright pass, and the
+behaviour they protect is asserted directly at the component level anyway: the drawer traps focus,
+closes on Escape, restores focus to its trigger, and marks the background inert.
+
 ## End-to-end — Playwright
 
 Three browser contexts in one test act as three players, driving real WebSocket traffic.

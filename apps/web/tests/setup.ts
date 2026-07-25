@@ -1,35 +1,28 @@
 import '@testing-library/jest-dom/vitest';
 import { afterEach, vi } from 'vitest';
 import { cleanup } from '@testing-library/react';
+import { setViewportWidth } from './helpers/viewport.js';
+import { resetSockets } from './helpers/socket.js';
 
 afterEach(() => {
   cleanup();
+  resetSockets();
+  // Every test starts narrow, so a test that cares about the desktop layout has to say so.
+  setViewportWidth(390);
+  document.documentElement.classList.remove('dark');
+  // The theme is persisted deliberately; leaking it into the next test is not.
+  localStorage.clear();
 });
+
+setViewportWidth(390);
 
 /**
- * happy-dom does not implement `matchMedia`, which the theme hook reads on first visit, or
- * `IntersectionObserver`. Stubbing them here keeps the shims in one place rather than scattered
- * through the tests.
+ * No real transport in unit tests — but a double the test can drive, not a stub that ignores it.
+ * A socket that never connects would make the reconnect contract untestable, which is the one
+ * part of the realtime layer that is ours rather than Socket.IO's.
  */
-Object.defineProperty(window, 'matchMedia', {
-  writable: true,
-  value: (query: string) => ({
-    matches: false,
-    media: query,
-    onchange: null,
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn(),
-    dispatchEvent: vi.fn(),
-  }),
-});
+vi.mock('socket.io-client', async () => {
+  const { createFakeSocket } = await import('./helpers/socket.js');
 
-/** Nothing in the shell needs a real socket; the tests assert on rendering, not transport. */
-vi.mock('socket.io-client', () => ({
-  io: () => ({
-    on: vi.fn(),
-    off: vi.fn(),
-    emit: vi.fn(),
-    close: vi.fn(),
-    connected: false,
-  }),
-}));
+  return { io: () => createFakeSocket() };
+});

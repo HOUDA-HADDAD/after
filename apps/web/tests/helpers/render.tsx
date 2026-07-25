@@ -41,16 +41,32 @@ export function renderWithProviders(
 /**
  * Run axe over a rendered container and return the violations.
  *
- * Configured to WCAG 2.1 A and AA, which is the bar the design commits to. `color-contrast` is
- * excluded here and only here: happy-dom does not compute styles, so axe cannot measure contrast
- * and would report false failures. Contrast is checked against a real browser in the Playwright
- * pass (Phase 9); leaving the rule on in a DOM that cannot answer it would train everyone to
- * ignore the result.
+ * Configured to WCAG 2.1 A and AA, which is the bar the design commits to.
+ *
+ * Two rules are disabled **in this layer only**, both because happy-dom cannot answer them —
+ * not because the app fails them:
+ *
+ *   - `color-contrast` needs computed styles, and happy-dom computes none.
+ *   - `aria-hidden-focus` needs real focusability. A modal marks the background `aria-hidden`
+ *     and `inert`; a browser then reports its contents as unfocusable, but happy-dom does not
+ *     implement `inert`, so axe sees an aria-hidden subtree full of focusable links. Radix's own
+ *     focus-guard sentinels (`[data-radix-focus-guard]`, deliberately `tabindex="0"` and
+ *     `aria-hidden`) trip the same rule.
+ *
+ * Both are covered against a real browser in the Playwright pass (Phase 9). Leaving a rule on in
+ * an environment that cannot evaluate it produces failures nobody can act on, and teaches the
+ * team to ignore the report — which costs more than the rule is worth.
+ *
+ * The behaviour those rules protect is asserted directly instead: the drawer traps focus, closes
+ * on Escape, restores focus to its trigger, and marks the background inert.
  */
 export async function findAccessibilityViolations(container: HTMLElement): Promise<axe.Result[]> {
   const results = await axe.run(container, {
     runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'] },
-    rules: { 'color-contrast': { enabled: false } },
+    rules: {
+      'color-contrast': { enabled: false },
+      'aria-hidden-focus': { enabled: false },
+    },
   });
 
   return results.violations;
