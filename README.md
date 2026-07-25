@@ -7,9 +7,9 @@ with a single theme, everyone writes one anonymous text, texts are randomly redi
 players answer, the table talks — and only at the very end, only if you asked for it,
 do you find out who wrote what.
 
-> **Status: Phase 1 of 10 complete.** Foundations and the data layer are built and tested; the
-> schema, migrations, repositories and quality gates are in place. Authentication is next.
-> See the [roadmap](docs/06-roadmap.md), and read the design documents below in order.
+> **Status: Phase 2 of 10 complete.** Foundations, the data layer and authentication are built
+> and tested — you can register, sign in, and reach a protected page. Groups and invitations are
+> next. See the [roadmap](docs/06-roadmap.md), and read the design documents below in order.
 
 ---
 

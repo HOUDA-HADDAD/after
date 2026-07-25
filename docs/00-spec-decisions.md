@@ -211,6 +211,29 @@ Each comment carries an `is_anonymous` flag chosen at post time. Anonymous comme
 "Anonymous" with no stable pseudonym, meaning two anonymous comments by the same person are
 uncorrelatable. That is the strongest privacy stance and it is the default.
 
+## D17a. Registration says when an email or username is already taken
+
+The security design originally called for one generic failure on registration, so the endpoint
+could not be used to discover who has an account. **Changed during Phase 2**, deliberately:
+
+**Ruling:** registration returns `EMAIL_TAKEN` or `USERNAME_TAKEN` explicitly. **Login stays
+generic and constant-time** — that is where enumeration actually matters, and it is unchanged.
+
+Why the change:
+
+- There is no password reset in v1 ([open question 6](#open-questions-for-the-product-owner)). A
+  user who forgets they already registered would hit an unexplainable error with _no recovery
+  path at all_. That is a real, common failure; enumeration here is a theoretical one.
+- What an attacker learns is that an address has an account on an invite-only app with no
+  profiles, no search and no content visible without a room code. The marginal value is close to
+  zero.
+- Username availability is a normal, expected affordance. Hiding it produces a form that refuses
+  input without saying why.
+
+Registration is rate limited per IP, which is the control that actually matters for bulk probing.
+**Revisit when password reset ships:** with a reset flow available, the generic-message design
+becomes viable again, because "you may already have an account" has somewhere useful to point.
+
 ## D18. Answers are text only
 
 The brief specifies text answers up to 1000 characters, with browser spellcheck and browser

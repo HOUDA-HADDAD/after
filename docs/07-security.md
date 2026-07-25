@@ -26,18 +26,26 @@ list of patches.
 - **argon2id**, parameters `m = 19456 KiB, t = 2, p = 1` (OWASP minimum), held in config so they
   can be raised without code changes. Encoded hash carries its own salt and parameters, so old
   hashes stay verifiable after an upgrade and can be re-hashed on next successful login.
-- **No user enumeration.** An unknown email still runs a verification against a fixed dummy hash,
-  so response timing is flat. Register, login and password-reset failures return one generic
-  message.
+- **No user enumeration on login.** Wrong password and unknown account return the identical
+  error, and the unknown-email branch still runs a full argon2 verification against a fixed dummy
+  hash — otherwise it would return in microseconds and timing would leak exactly what the
+  identical message was hiding. Both properties are asserted by tests.
+- **Registration is explicit about a taken email or username**, which is a deliberate reversal of
+  the original design — see [D17a](00-spec-decisions.md#d17a-registration-says-when-an-email-or-username-is-already-taken).
+  Without a password-reset flow, a generic failure leaves a returning user with no way forward,
+  and the information disclosed is near-worthless on an invite-only app with no profiles. Bulk
+  probing is bounded by the per-IP rate limit.
 - **Opaque session tokens**: 256 bits from `crypto.randomBytes`, base64url-encoded in the cookie,
   **SHA-256 hashed in the database**. A leaked dump yields no usable sessions. Lookup is by hash,
   so it is still a single indexed query.
-- **Cookie**: `__Host-session`, `HttpOnly`, `Secure`, `SameSite=Lax`, `Path=/`, no `Domain`. The
-  `__Host-` prefix is only accepted by browsers under exactly those conditions, which makes
-  subdomain-injection attacks structurally impossible.
+- **Cookie**: `__Host-aftergame_session`, `HttpOnly`, `Secure`, `SameSite=Lax`, `Path=/`, no
+  `Domain`. The `__Host-` prefix is only accepted by browsers under exactly those conditions,
+  which makes subdomain-injection attacks structurally impossible. Browsers reject the prefix over
+  plain http, so development uses an unprefixed name — the one place the two environments differ.
 - **Lifetime**: 30-day sliding expiry, refreshed at most once per hour to avoid a write per
-  request. Logout deletes the row (not just the cookie). Password change invalidates all other
-  sessions.
+  request. Logout deletes the row, not just the cookie, and `POST /auth/logout-all` revokes every
+  session for the account. (Password change also revokes them — when password change ships; there
+  is no such endpoint in v1, see [D17a](00-spec-decisions.md#d17a-registration-says-when-an-email-or-username-is-already-taken).)
 - **No JWTs.** Server-side sessions are revocable instantly; a stateless token is not. For an app
   where "remove this member / block this player" must take effect immediately, revocability wins,
   and the database round-trip is a single indexed lookup we are already making.
@@ -112,12 +120,20 @@ token-based double-submit adds nothing and is omitted deliberately.
 
 `@fastify/rate-limit`, keyed by user id where authenticated and by IP otherwise:
 
-| Route group                               | Limit                                  |
-| ----------------------------------------- | -------------------------------------- |
-| `POST /auth/login`, `/auth/register`      | 5 / 15 min per IP, 10 / hour per email |
-| `POST /invitations/redeem`                | 10 / hour per IP **and** per account   |
-| Content writes (texts, answers, comments) | 30 / min per user                      |
-| Everything else                           | 300 / min per user                     |
+| Route group                               | Limit                                               |
+| ----------------------------------------- | --------------------------------------------------- |
+| `POST /auth/login`, `/auth/register`      | 5 / 15 min per IP; login also 10 / hour per account |
+| `POST /invitations/redeem`                | 10 / hour per IP **and** per account                |
+| Content writes (texts, answers, comments) | 30 / min per user                                   |
+| Everything else                           | 300 / min per user                                  |
+
+The two dimensions do different jobs, and the second is the one that matters most. `@fastify/rate-limit`
+caps attempts **per IP**, which stops one machine grinding through passwords. The per-account
+limiter (`lib/attempt-limiter.ts`) caps attempts **per email**, which is what stops an attacker
+spreading guesses for one person's account across many addresses — a pattern an IP limit cannot
+see. A successful sign-in clears the account counter, so one forgotten password does not lock
+someone out for an hour. It is in-process, matching the single-instance deployment; with several
+instances each would enforce its own share, degraded but never absent.
 
 Invitation-code redemption is the one endpoint where an attacker gets unlimited guesses, so it
 gets the tightest budget and uniform error responses regardless of failure reason.

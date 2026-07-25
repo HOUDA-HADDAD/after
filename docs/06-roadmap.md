@@ -42,9 +42,9 @@ data — including duplicate `(text_id, receiver_player_id)` and two live sessio
 ## Phase 2 — Authentication · ~3 days
 
 - argon2id hashing with OWASP parameters; constant-time unknown-email path
-- Opaque token issuance, SHA-256 at rest, `__Host-session` cookie with `SameSite=Lax`
-- `POST /auth/register|login|logout`, `GET /me`, sliding expiry, "sign out everywhere"
-- Origin-header CSRF check on all mutations; rate limiting on auth routes
+- Opaque token issuance, SHA-256 at rest, `__Host-` cookie with `SameSite=Lax`
+- `POST /auth/register|login|logout|logout-all`, `GET /me`, sliding expiry
+- Origin-header CSRF check on all mutations; per-IP _and_ per-account rate limiting
 - Web: register/login screens, session bootstrap, protected routes, auth error copy
 
 **Exit:** integration tests cover register → login → authenticated request → logout →

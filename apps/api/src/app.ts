@@ -9,7 +9,9 @@ import prisma from './plugins/prisma.js';
 import security from './plugins/security.js';
 import staticFiles from './plugins/static.js';
 import errorHandler from './plugins/error-handler.js';
+import auth from './plugins/auth.js';
 import healthRoutes from './modules/health/health.routes.js';
+import authRoutes from './modules/auth/auth.routes.js';
 
 /**
  * Fields that must never reach a log line.
@@ -76,12 +78,14 @@ export async function buildApp({ env, prismaClient }: BuildAppOptions): Promise<
   // Must come after `static`, because the not-found handler falls back to index.html.
   await app.register(errorHandler, { env });
 
+  await app.register(auth, { env });
+
   await app.register(healthRoutes);
 
-  // Feature modules register under /api/v1 from Phase 2 onwards.
   await app.register(
     async (api) => {
       api.get('/version', async () => ({ name: 'aftergame', version: '0.1.0' }));
+      await api.register(authRoutes, { prefix: '/auth' });
     },
     { prefix: '/api/v1' },
   );

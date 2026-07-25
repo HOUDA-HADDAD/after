@@ -31,6 +31,10 @@ export async function buildTestApp(options: TestAppOptions = {}): Promise<{
     APP_ORIGIN: 'http://localhost:5173',
     RATE_LIMIT_ENABLED: 'false',
     LOG_LEVEL: 'silent',
+    // The cheapest parameters the schema allows. These tests are about auth behaviour, not about
+    // how long argon2 takes; production parameters are asserted in src/lib/password.test.ts.
+    ARGON2_MEMORY_KIB: '8192',
+    ARGON2_TIME_COST: '1',
     ...overrides,
   });
 
