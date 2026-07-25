@@ -38,7 +38,7 @@ export const toGroupDetailDto = (
   members: members.map(toMemberDto),
 });
 
-const memberJsonSchema = {
+export const memberJsonSchema = {
   type: 'object',
   properties: {
     userId: { type: 'string' },

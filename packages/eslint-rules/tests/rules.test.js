@@ -94,6 +94,15 @@ describe('no-imports-in-game-core', () => {
         code: `import { PrismaClient } from '@prisma/client'; const t = Date.now();`,
         filename: api('modules/sessions/sessions.service.ts'),
       },
+      // Tests are exempt: property testing is what proves the rule earns its keep.
+      {
+        code: `import fc from 'fast-check'; const t = Date.now();`,
+        filename: core('distribution.test.ts'),
+      },
+      {
+        code: `import fc from 'fast-check';`,
+        filename: '/repo/packages/game-core/tests/punishment.test.ts',
+      },
     ],
     invalid: [
       {

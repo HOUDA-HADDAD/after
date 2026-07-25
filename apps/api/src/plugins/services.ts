@@ -12,12 +12,18 @@ import {
   createInvitationsService,
   type InvitationsService,
 } from '../modules/invitations/invitations.service.js';
+import { createPunishmentsRepository } from '../modules/punishments/punishments.repository.js';
+import {
+  createPunishmentsService,
+  type PunishmentsService,
+} from '../modules/punishments/punishments.service.js';
 
 declare module 'fastify' {
   interface FastifyInstance {
     groups: GroupsService;
     memberships: MembershipsService;
     invitations: InvitationsService;
+    punishments: PunishmentsService;
   }
 }
 
@@ -32,6 +38,7 @@ declare module 'fastify' {
 const servicesPlugin: FastifyPluginAsync<{ env: Env }> = async (app, { env }) => {
   const groupsRepository = createGroupsRepository(app.prisma);
   const invitationsRepository = createInvitationsRepository(app.prisma);
+  const punishmentsRepository = createPunishmentsRepository(app.prisma);
 
   app.decorate('groups', createGroupsService({ groups: groupsRepository, env }));
 
@@ -47,6 +54,15 @@ const servicesPlugin: FastifyPluginAsync<{ env: Env }> = async (app, { env }) =>
       groups: groupsRepository,
       transaction: app.transaction,
       env,
+    }),
+  );
+
+  app.decorate(
+    'punishments',
+    createPunishmentsService({
+      punishments: punishmentsRepository,
+      groups: groupsRepository,
+      transaction: app.transaction,
     }),
   );
 };

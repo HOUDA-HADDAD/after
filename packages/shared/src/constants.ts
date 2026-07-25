@@ -16,14 +16,10 @@ export const COMMENT_MAX_LENGTH = 500;
 export const MIN_PLAYERS_PER_SESSION = 2;
 
 /**
- * Punishment escalation (docs/00-spec-decisions.md D6, D7).
- * Level 0 → answers 1 text, level 1 → 2, level 2 → 3, level 3 → blocked from games.
+ * Punishment levels and the answer loads they imply live in `@aftergame/game-core`, which owns
+ * the rules rather than merely naming them. Import `demandFor`, `escalate`, `isBlocked` and
+ * friends from there — two copies of "level 3 means blocked" is one copy too many.
  */
-export const MAX_PUNISHMENT_LEVEL = 3;
-export const BLOCKED_PUNISHMENT_LEVEL = 3;
-
-/** Extra texts a punished player answers, indexed by level. Clamped to N at distribution (D3). */
-export const ANSWER_LOAD_BY_PUNISHMENT_LEVEL = [1, 2, 3] as const;
 
 /** Group name bounds. */
 export const GROUP_NAME_MIN_LENGTH = 2;

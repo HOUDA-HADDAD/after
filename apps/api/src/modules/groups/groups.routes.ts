@@ -13,6 +13,7 @@ import {
   groupSummaryJsonSchema,
   memberListJsonSchema,
 } from './groups.mapper.js';
+import punishmentRoutes from '../punishments/punishments.routes.js';
 
 interface GroupParams {
   groupId: string;
@@ -228,6 +229,10 @@ const groupRoutes: FastifyPluginAsync = async (app) => {
       return reply.status(204).send();
     },
   );
+
+  /* ---- Punishments -------------------------------------------------------------------- */
+
+  await app.register(punishmentRoutes);
 };
 
 /**

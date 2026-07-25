@@ -1,56 +1,43 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import type { GroupDetailDto, GroupMemberDto, InvitationDto } from '@aftergame/shared';
+import type { GroupDetailDto, InvitationDto } from '@aftergame/shared';
 import { AppHeader } from '../../shared/components/AppHeader.js';
 import { messageFor } from '../../shared/lib/error-copy.js';
-import { createInvitation, getGroup, leaveGroup, listInvitations } from './groups.api.js';
-
-const ROLE_LABEL: Record<GroupMemberDto['role'], string> = {
-  OWNER: 'Owner',
-  COHOST: 'Co-host',
-  MEMBER: 'Member',
-};
-
-/** A blocked player keeps full access to the group; they simply cannot be put on a roster (D7). */
-function MemberRow({ member }: { member: GroupMemberDto }) {
-  const blocked = member.status === 'GAME_BLOCKED';
-
-  return (
-    <li className="flex items-center justify-between gap-3 border-b border-[var(--color-border)] py-2 last:border-0">
-      <div className="min-w-0">
-        <p className="truncate font-medium">{member.username}</p>
-        <p className="text-xs text-[var(--color-ink-muted)]">
-          {ROLE_LABEL[member.role]}
-          {member.consecutivePunishments > 0 &&
-            ` · ${String(member.consecutivePunishments)} punishment${member.consecutivePunishments === 1 ? '' : 's'}`}
-        </p>
-      </div>
-
-      {blocked && (
-        <span className="shrink-0 rounded-full border border-red-500/40 px-2 py-0.5 text-xs text-red-500">
-          Cannot join games
-        </span>
-      )}
-    </li>
-  );
-}
+import { useSession } from '../auth/SessionProvider.js';
+import { canModerate, MemberRow } from './MemberRow.js';
+import { PunishmentHistory } from './PunishmentHistory.js';
+import {
+  createInvitation,
+  forgiveMember,
+  getGroup,
+  leaveGroup,
+  listInvitations,
+  listPunishments,
+  punishMember,
+  type PunishmentEventDto,
+} from './groups.api.js';
 
 export default function GroupDetailPage() {
   const { groupId = '' } = useParams();
   const navigate = useNavigate();
 
+  const { state } = useSession();
+
   const [group, setGroup] = useState<GroupDetailDto | null>(null);
   const [invitations, setInvitations] = useState<InvitationDto[]>([]);
+  const [events, setEvents] = useState<PunishmentEventDto[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
 
   const isHost = group !== null && group.viewerRole !== 'MEMBER';
+  const viewerId = state.status === 'authenticated' ? state.user.id : '';
 
   const refresh = useCallback(async () => {
     try {
       const detail = await getGroup(groupId);
       setGroup(detail);
+      setEvents(await listPunishments(groupId));
 
       if (detail.viewerRole !== 'MEMBER') {
         setInvitations(await listInvitations(groupId));
@@ -59,6 +46,21 @@ export default function GroupDetailPage() {
       setError(messageFor(caught));
     }
   }, [groupId]);
+
+  /** Punish and forgive share everything but the call, so they share the handler. */
+  const moderate = async (userId: string, action: 'punish' | 'forgive') => {
+    setError(null);
+    setBusy(true);
+
+    try {
+      await (action === 'punish' ? punishMember : forgiveMember)(groupId, userId);
+      await refresh();
+    } catch (caught) {
+      setError(messageFor(caught));
+    } finally {
+      setBusy(false);
+    }
+  };
 
   useEffect(() => {
     void refresh();
@@ -149,6 +151,13 @@ export default function GroupDetailPage() {
             </p>
           </div>
 
+          <section className="mt-8">
+            <h2 className="text-xs font-medium tracking-wide text-[var(--color-ink-muted)] uppercase">
+              Punishment history
+            </h2>
+            <PunishmentHistory events={events} />
+          </section>
+
           <div aria-live="polite">
             {error !== null && <p className="mt-4 text-sm text-red-500">{error}</p>}
           </div>
@@ -205,7 +214,15 @@ export default function GroupDetailPage() {
             </h2>
             <ul className="mt-2">
               {group.members.map((member) => (
-                <MemberRow key={member.userId} member={member} />
+                <MemberRow
+                  key={member.userId}
+                  member={member}
+                  playerCount={group.memberCount}
+                  moderatable={isHost && canModerate(group.viewerRole, viewerId, member)}
+                  busy={busy}
+                  onPunish={() => void moderate(member.userId, 'punish')}
+                  onForgive={() => void moderate(member.userId, 'forgive')}
+                />
               ))}
             </ul>
           </div>

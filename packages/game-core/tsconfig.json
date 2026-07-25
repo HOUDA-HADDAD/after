@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": ".",
+    /* No `types` entry on purpose: this package must not even see Node's globals, which is what
+       stops `process.env` or a timer creeping into a supposedly pure rule. */
+    "types": []
+  },
+  "include": ["src/**/*.ts", "tests/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}

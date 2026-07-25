@@ -12,6 +12,15 @@
 
 const GAME_CORE_SRC = /[\\/]packages[\\/]game-core[\\/]src[\\/]/;
 
+/**
+ * Tests are exempt.
+ *
+ * The rule protects the *shipped* domain code: it must carry no dependencies and no ambient
+ * clock. Its tests are where fast-check generates ten thousand cases and where a fixed `now` is
+ * asserted — banning imports there would ban the very thing that proves the rule is worth having.
+ */
+const TEST_FILES = [/\.(test|spec)\.(ts|js)$/, /[\\/]tests?[\\/]/, /[\\/]__tests__[\\/]/];
+
 const isRelative = (value) => typeof value === 'string' && value.startsWith('.');
 
 /** @type {import('eslint').Rule.RuleModule} */
@@ -36,6 +45,7 @@ export default {
   create(context) {
     const filename = context.filename ?? context.getFilename();
     if (!GAME_CORE_SRC.test(filename)) return {};
+    if (TEST_FILES.some((pattern) => pattern.test(filename))) return {};
 
     const reportAmbient = (node, messageId) => context.report({ node, messageId });
 

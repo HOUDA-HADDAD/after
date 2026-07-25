@@ -22,6 +22,9 @@ export const GROUP_ACTIONS = [
   'invitation:create',
   'invitation:list',
   'invitation:revoke',
+  'punishment:punish',
+  'punishment:forgive',
+  'punishment:list',
 ] as const;
 
 export type GroupAction = (typeof GROUP_ACTIONS)[number];
@@ -64,6 +67,23 @@ export function can(action: GroupAction, actor: Actor, target?: Target): boolean
     case 'group:read':
     case 'member:list':
       return true;
+
+    // The punishment history is visible to every member on purpose: it is accountability for
+    // hosts, not a private list kept about people.
+    case 'punishment:list':
+      return true;
+
+    /**
+     * Punishing and forgiving carry the same target asymmetry as removal — a co-host must not be
+     * able to punish the owner or another co-host — and nobody may punish themselves.
+     */
+    case 'punishment:punish':
+    case 'punishment:forgive': {
+      if (target === undefined) return false;
+      if (target.userId === actor.userId) return false;
+      if (actor.role === 'OWNER') return true;
+      return actor.role === 'COHOST' && target.role === 'MEMBER';
+    }
 
     case 'group:rename':
     case 'invitation:create':

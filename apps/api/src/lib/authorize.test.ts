@@ -20,6 +20,8 @@ describe('group authorization', () => {
     const matrix: { action: GroupAction; owner: boolean; cohost: boolean; member: boolean }[] = [
       { action: 'group:read', owner: true, cohost: true, member: true },
       { action: 'member:list', owner: true, cohost: true, member: true },
+      // Deliberately visible to everyone: accountability for hosts, not a private list.
+      { action: 'punishment:list', owner: true, cohost: true, member: true },
       { action: 'group:rename', owner: true, cohost: true, member: false },
       { action: 'invitation:create', owner: true, cohost: true, member: false },
       { action: 'invitation:list', owner: true, cohost: true, member: false },
@@ -32,13 +34,21 @@ describe('group authorization', () => {
       { action: 'member:leave', owner: false, cohost: true, member: true },
     ];
 
+    /** Actions whose answer depends on the target; each has its own block below. */
+    const TARGET_DEPENDENT = new Set<GroupAction>([
+      'member:remove',
+      'punishment:punish',
+      'punishment:forgive',
+    ]);
+
     it('covers every action in the union', () => {
+      // This is the test that fails when someone adds an action and forgets to decide who may
+      // perform it — which is exactly what happened when punishments were introduced.
       const covered = new Set(matrix.map((row) => row.action));
       const uncovered = GROUP_ACTIONS.filter(
-        (action) => !covered.has(action) && action !== 'member:remove',
+        (action) => !covered.has(action) && !TARGET_DEPENDENT.has(action),
       );
 
-      // `member:remove` depends on the target and is exercised in its own block below.
       expect(uncovered).toEqual([]);
     });
 
@@ -81,6 +91,35 @@ describe('group authorization', () => {
 
     it('refuses when no target is supplied', () => {
       expect(can('member:remove', actor('OWNER'))).toBe(false);
+    });
+  });
+
+  describe('punishing and forgiving carry the same asymmetry as removal', () => {
+    const actions = ['punishment:punish', 'punishment:forgive'] as const;
+
+    it.each(actions)('%s — the owner may act on co-hosts and members', (action) => {
+      expect(can(action, actor('OWNER'), target('COHOST'))).toBe(true);
+      expect(can(action, actor('OWNER'), target('MEMBER'))).toBe(true);
+    });
+
+    it.each(actions)('%s — a co-host may act on ordinary members only', (action) => {
+      expect(can(action, actor('COHOST'), target('MEMBER'))).toBe(true);
+      // Otherwise two co-hosts can punish each other to a standstill, or gang up on the owner.
+      expect(can(action, actor('COHOST'), target('COHOST'))).toBe(false);
+      expect(can(action, actor('COHOST'), target('OWNER'))).toBe(false);
+    });
+
+    it.each(actions)('%s — an ordinary member may not', (action) => {
+      expect(can(action, actor('MEMBER'), target('MEMBER', 'someone'))).toBe(false);
+    });
+
+    it.each(actions)('%s — nobody may act on themselves', (action) => {
+      expect(can(action, actor('OWNER', 'same'), target('OWNER', 'same'))).toBe(false);
+      expect(can(action, actor('COHOST', 'same'), target('COHOST', 'same'))).toBe(false);
+    });
+
+    it.each(actions)('%s — refuses without a target', (action) => {
+      expect(can(action, actor('OWNER'))).toBe(false);
     });
   });
 

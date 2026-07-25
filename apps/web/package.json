@@ -14,6 +14,7 @@
     "clean": "rimraf dist .turbo coverage node_modules/.vite"
   },
   "dependencies": {
+    "@aftergame/game-core": "workspace:^",
     "@aftergame/shared": "workspace:*",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

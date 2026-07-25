@@ -25,6 +25,13 @@ custom ESLint rules that turn our architectural invariants into build failures:
 | `no-imports-in-game-core`        | The domain package acquiring I/O and becoming untestable               |
 | `no-identity-fields-in-dto`      | `authorId` / `revealVote` / `choice` appearing in any serialized shape |
 
+Type-only imports are exempt from the first rule and test files from the second: a type cannot
+build a query, and property tests are the thing that makes the pure package worth having.
+
+`packages/game-core` additionally sets `"types": []` in its tsconfig, so it cannot even see
+Node's globals — which is what stops `process.env` or a timer creeping into a supposedly pure
+rule.
+
 The third rule is a security control, not a style preference.
 
 ## Unit tests — Vitest

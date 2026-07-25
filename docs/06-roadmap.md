@@ -65,7 +65,9 @@ non-member receives 404 — not 403 — for every group route, so group existenc
 ## Phase 4 — Punishment system · ~2 days
 
 - `game-core/punishment.ts`: `demandFor`, `escalate`, `resetIfUnpunished`, `forgive`, `isBlocked`
-- API: punish, forgive, history; audit rows written in the same transaction as counter updates
+  — the first module of the pure package, with the 100% branch-coverage gate switched on
+- API: punish, forgive, history; audit rows written in the same transaction as counter updates,
+  with compare-and-set so two hosts pressing "punish" at once cannot lose one
 - Web: punishment badges, punish/forgive controls, group punishment history, blocked-member banner
 
 **Exit:** unit tests cover the full 0→1→2→3→forgive→0 cycle including the "completes a game
