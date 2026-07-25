@@ -7,7 +7,9 @@ deliberately not quoted here — verify current limits with each provider before
 
 ## Local development
 
-Prerequisites: Node 22+, pnpm 9+, Docker Desktop (for PostgreSQL and Testcontainers).
+Prerequisites: Node 22+ and pnpm 9+. Docker is convenient for the development database but is
+**not required** — the test suite starts its own PostgreSQL, and `DATABASE_URL` can point at any
+PostgreSQL you already have.
 
 ```bash
 git clone <repo> && cd aftergame
@@ -24,16 +26,20 @@ development exactly as it will in production — cookies, CSRF and WebSocket beh
 identical in both environments, which is the point.
 
 ```bash
-pnpm test          # unit + property
-pnpm test:int      # integration (starts a Postgres container)
+pnpm test          # every suite, including the database integration tests
 pnpm test:e2e      # Playwright
 pnpm lint && pnpm typecheck
 pnpm build         # both apps
+pnpm verify        # everything CI runs, in order
 ```
 
-Windows note: Docker Desktop with the WSL2 backend is required for Testcontainers. If Docker is
-unavailable, `docker-compose.test.yml` provides a long-lived test database and
-`TEST_DATABASE_URL` bypasses Testcontainers.
+**The database tests need no setup.** If `TEST_DATABASE_URL` is set they use that PostgreSQL
+(`docker compose up -d` creates `aftergame_test` for exactly this); otherwise they start their
+own PostgreSQL 16 on a temporary directory and delete it afterwards. Setting the variable is
+worth it if you run the suite often — it skips the ~3s server boot.
+
+Without Docker, point `DATABASE_URL` at any PostgreSQL you have access to and skip the
+`docker compose` step; nothing else changes.
 
 ---
 

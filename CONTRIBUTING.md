@@ -2,13 +2,14 @@
 
 ## Getting set up
 
-Prerequisites: **Node 22+**, **pnpm 9+**, and **Docker** (for PostgreSQL and, from Phase 1,
-Testcontainers).
+Prerequisites: **Node 22+** and **pnpm 9+**. Docker is convenient but **optional** — see below.
 
 ```bash
 pnpm install
 cp .env.example .env
-docker compose up -d
+docker compose up -d          # PostgreSQL 16 + Adminer on :8080
+pnpm --filter @aftergame/api db:migrate
+pnpm --filter @aftergame/api db:seed
 pnpm dev
 ```
 
@@ -51,6 +52,32 @@ APP_ORIGIN=http://localhost:5273
 
 Run `pnpm verify` before opening a PR. It is the same set of gates CI applies, so a green local
 run means a green pipeline.
+
+### Database commands
+
+Run from `apps/api`, or prefix with `pnpm --filter @aftergame/api`:
+
+| Command      | What it does                                                         |
+| ------------ | -------------------------------------------------------------------- |
+| `db:migrate` | `prisma migrate dev` — create and apply a migration in development   |
+| `db:deploy`  | `prisma migrate deploy` — apply pending migrations, as in production |
+| `db:seed`    | Insert the three system themes; idempotent, safe to re-run           |
+| `db:studio`  | Prisma Studio, a browser UI over the data                            |
+| `db:reset`   | Drop, re-migrate and re-seed. Destroys local data.                   |
+
+**The test suite needs no database setup.** If `TEST_DATABASE_URL` is set it uses that PostgreSQL
+(`docker compose up -d` creates `aftergame_test` for it); otherwise it starts its own PostgreSQL
+16 for the run and deletes it afterwards. Setting the variable skips a ~3s boot per run.
+
+### Careful with `prisma migrate dev`
+
+Some of the schema is hand-written SQL that Prisma's schema language cannot express: the `citext`
+and `pgcrypto` extensions, `uuid_generate_v7()`, two partial unique indexes, and eleven CHECK
+constraints. Prisma cannot see them, so **a generated migration will contain statements dropping
+them**. Read every generated migration and delete those DROPs before committing.
+
+The `hand-written DDL is present` block in `tests/integration/schema-constraints.test.ts` is the
+alarm for this. If it goes red, that is what happened.
 
 ## Repository layout
 

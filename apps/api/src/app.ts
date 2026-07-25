@@ -1,9 +1,11 @@
 import Fastify, { type FastifyInstance } from 'fastify';
 import cookie from '@fastify/cookie';
+import type { PrismaClient } from '@prisma/client';
 import type { Env } from '@aftergame/config';
 
 import requestContext, { generateRequestId } from './plugins/request-context.js';
 import readiness from './plugins/readiness.js';
+import prisma from './plugins/prisma.js';
 import security from './plugins/security.js';
 import staticFiles from './plugins/static.js';
 import errorHandler from './plugins/error-handler.js';
@@ -31,13 +33,18 @@ const REDACTED_PATHS = [
 
 export interface BuildAppOptions {
   env: Env;
+  /**
+   * An existing Prisma client to use instead of creating one. Tests inject a shared client so
+   * the whole suite holds a single database connection; production always creates its own.
+   */
+  prismaClient?: PrismaClient;
 }
 
 /**
  * Compose the application. Does not listen — that is `main.ts`'s job, which keeps this usable
  * from tests via `app.inject()` with no port and no teardown races.
  */
-export async function buildApp({ env }: BuildAppOptions): Promise<FastifyInstance> {
+export async function buildApp({ env, prismaClient }: BuildAppOptions): Promise<FastifyInstance> {
   const app = Fastify({
     genReqId: generateRequestId,
     trustProxy: env.NODE_ENV === 'production',
@@ -58,6 +65,10 @@ export async function buildApp({ env }: BuildAppOptions): Promise<FastifyInstanc
 
   await app.register(requestContext);
   await app.register(readiness);
+  await app.register(prisma, {
+    env,
+    ...(prismaClient === undefined ? {} : { client: prismaClient }),
+  });
   await app.register(security, { env });
   await app.register(cookie, { secret: env.SESSION_SECRET });
   await app.register(staticFiles, { env });

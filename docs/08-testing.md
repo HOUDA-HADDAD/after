@@ -62,12 +62,35 @@ Failing cases are shrunk automatically and pinned as regression tests. This is t
 highest-leverage test investment in the project — the distribution algorithm is the one place
 where a subtle bug silently ruins games without throwing an error.
 
-## Integration tests — Vitest + Testcontainers
+## Integration tests — Vitest + real PostgreSQL
 
-A real PostgreSQL container per run; the API is exercised through `app.inject()`, so routes,
-plugins, validation, authorization and transactions all execute for real. Each test runs inside a
-transaction that is rolled back, so tests are isolated and fast. Factories (`makeUser`,
-`makeGroup`, `makeSessionInPhase`) keep setup to a couple of lines.
+The API is exercised through `app.inject()`, so routes, plugins, validation, authorization and
+transactions all execute for real against a real database.
+
+**Two tiers, both genuine PostgreSQL 16:**
+
+| Tier | When                       | What it is                                                                                                                                                                               |
+| ---- | -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | `TEST_DATABASE_URL` is set | An already-running PostgreSQL. CI uses a Postgres 16 service container; locally `docker compose up -d` creates `aftergame_test` for this.                                                |
+| 2    | Otherwise                  | The official PostgreSQL 16 binaries shipped via npm (`embedded-postgres`), started on a temporary data directory and deleted on teardown. No Docker, no admin rights, no global install. |
+
+Migrations are applied by `prisma migrate deploy` — the exact command production runs — so the
+suite verifies the real migration path rather than a test-only schema shortcut. Both tiers are
+initialised `UTF8` / `C` collation to match production exactly; a locale-inherited database
+behaves differently enough to make a green run meaningless.
+
+Between tests the database is emptied with `TRUNCATE … CASCADE` rather than a per-test
+transaction rollback, because the code under test opens its own transactions and wrapping those
+in an outer one changes the very isolation behaviour the session tests exist to verify.
+Factories (`makeUser`, `makeGroup`, `makeAnswerableSession`) keep setup to a couple of lines.
+
+> **Why not Testcontainers, and why not an in-process WASM PostgreSQL?**
+> Testcontainers requires a working Docker daemon, which is one more thing that must be true
+> before anyone can run a test; tier 1 already covers Docker users through plain compose, and
+> tier 2 removes the requirement entirely. An in-process WASM build (PGlite) was tried first and
+> rejected: its socket bridge desynchronised after the first constraint violation, reporting
+> later failures as successes. More than half of this suite asserts that constraints _reject_
+> bad data, so a harness that gets error paths wrong is worse than no harness at all.
 
 Coverage areas:
 
@@ -80,8 +103,16 @@ Coverage areas:
 - **Session lifecycle** — full games at `N = 2, 3, 8` with and without punishment; force-advance;
   cancel; abandon; the grace-window purge.
 - **Constraints** — each database constraint is proven to actually reject bad data: duplicate
-  `(text_id, receiver_player_id)`, two live sessions in one group, empty bodies, punishment level
-  4, two owners.
+  `(text_id, receiver_player_id)`, two live sessions in one group, blank bodies, punishment level
+  4, two owners, level 3 disagreeing with `GAME_BLOCKED`.
+- **Hand-written DDL** — extensions, `uuid_generate_v7()`, the partial unique indexes and every
+  CHECK constraint are asserted present _by name_. Prisma's schema language cannot express any of
+  them, so `prisma migrate dev` cannot see them and a generated migration will happily drop them.
+  This block is the alarm; if it goes red after a migration, the generated SQL needs its DROP
+  statements removed before it is committed.
+- **Purge cascade** — deleting one `game_sessions` row removes every text, assignment, answer,
+  comment, guess and vote, destroys the `game_players` mapping back to real accounts, and leaves
+  the punishment audit standing with its session reference nulled (D11).
 - **Concurrency** — 20 parallel "final submit" requests produce exactly one distribution; parallel
   punish calls do not skip a level; double-submit is idempotent.
 - **Real-time** — a genuine Socket.IO client connects, is rejected without a cookie, is rejected

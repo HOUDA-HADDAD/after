@@ -22,17 +22,17 @@ describe('application skeleton', () => {
       expect(response.json()).toMatchObject({ status: 'ok' });
     });
 
-    it('reports readiness from the probe registry', async () => {
+    it('reports readiness from the probe registry, including the database', async () => {
       const response = await app.inject({ method: 'GET', url: '/readyz' });
 
       expect(response.statusCode).toBe(200);
-      expect(response.json()).toEqual({ status: 'ready', checks: {} });
+      expect(response.json()).toEqual({ status: 'ready', checks: { database: true } });
     });
 
     it('reports not-ready when a probe fails', async () => {
       const { app: failing } = await buildTestApp({
         routes: (instance) => {
-          instance.readiness.add('database', async () => false);
+          instance.readiness.add('cache', async () => false);
         },
       });
       await failing.ready();
@@ -40,7 +40,7 @@ describe('application skeleton', () => {
       const response = await failing.inject({ method: 'GET', url: '/readyz' });
 
       expect(response.statusCode).toBe(503);
-      expect(response.json()).toEqual({ status: 'not-ready', checks: { database: false } });
+      expect(response.json()).toMatchObject({ status: 'not-ready', checks: { cache: false } });
 
       await failing.close();
     });
@@ -48,7 +48,7 @@ describe('application skeleton', () => {
     it('treats a throwing probe as not ready rather than crashing', async () => {
       const { app: failing } = await buildTestApp({
         routes: (instance) => {
-          instance.readiness.add('database', async () => {
+          instance.readiness.add('cache', async () => {
             throw new Error('connection refused');
           });
         },

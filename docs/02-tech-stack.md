@@ -7,31 +7,31 @@ reason is stated — a choice without a rejected alternative is not a decision.
 
 ## Summary
 
-| Concern          | Choice                                           | Licence               |
-| ---------------- | ------------------------------------------------ | --------------------- |
-| Language         | TypeScript 5.7 (strict)                          | Apache-2.0            |
-| Repo             | pnpm workspaces + Turborepo                      | MIT                   |
-| Frontend         | React 19 + Vite 6                                | MIT                   |
-| Routing          | React Router 7 (declarative)                     | MIT                   |
-| Styling          | Tailwind CSS 4                                   | MIT                   |
-| Components       | shadcn/ui (Radix UI primitives)                  | MIT                   |
-| Icons            | lucide-react                                     | ISC                   |
-| Animation        | Motion (`motion`, ex-Framer Motion)              | MIT                   |
-| Server state     | TanStack Query 5                                 | MIT                   |
-| Client state     | Zustand 5                                        | MIT                   |
-| Forms            | react-hook-form + `@hookform/resolvers`          | MIT                   |
-| Validation       | Zod 3 (shared client ↔ server)                   | MIT                   |
-| API server       | Fastify 5                                        | MIT                   |
-| Real-time        | Socket.IO 4                                      | MIT                   |
-| ORM              | Prisma 6                                         | Apache-2.0            |
-| Database         | PostgreSQL 16                                    | PostgreSQL Licence    |
-| Password hashing | argon2id via `@node-rs/argon2`                   | MIT                   |
-| Scheduling       | node-cron                                        | ISC                   |
-| Logging          | pino                                             | MIT                   |
-| Tests            | Vitest 3, fast-check, Testcontainers, Playwright | MIT                   |
-| Lint/format      | ESLint 9 (flat) + Prettier                       | MIT                   |
-| CI               | GitHub Actions                                   | free for public repos |
-| Containers       | Docker + Docker Compose                          | Apache-2.0            |
+| Concern          | Choice                                              | Licence               |
+| ---------------- | --------------------------------------------------- | --------------------- |
+| Language         | TypeScript 5.7 (strict)                             | Apache-2.0            |
+| Repo             | pnpm workspaces + Turborepo                         | MIT                   |
+| Frontend         | React 19 + Vite 6                                   | MIT                   |
+| Routing          | React Router 7 (declarative)                        | MIT                   |
+| Styling          | Tailwind CSS 4                                      | MIT                   |
+| Components       | shadcn/ui (Radix UI primitives)                     | MIT                   |
+| Icons            | lucide-react                                        | ISC                   |
+| Animation        | Motion (`motion`, ex-Framer Motion)                 | MIT                   |
+| Server state     | TanStack Query 5                                    | MIT                   |
+| Client state     | Zustand 5                                           | MIT                   |
+| Forms            | react-hook-form + `@hookform/resolvers`             | MIT                   |
+| Validation       | Zod 3 (shared client ↔ server)                      | MIT                   |
+| API server       | Fastify 5                                           | MIT                   |
+| Real-time        | Socket.IO 4                                         | MIT                   |
+| ORM              | Prisma 6                                            | Apache-2.0            |
+| Database         | PostgreSQL 16                                       | PostgreSQL Licence    |
+| Password hashing | argon2id via `@node-rs/argon2`                      | MIT                   |
+| Scheduling       | node-cron                                           | ISC                   |
+| Logging          | pino                                                | MIT                   |
+| Tests            | Vitest 3, fast-check, embedded-postgres, Playwright | MIT                   |
+| Lint/format      | ESLint 9 (flat) + Prettier                          | MIT                   |
+| CI               | GitHub Actions                                      | free for public repos |
+| Containers       | Docker + Docker Compose                             | Apache-2.0            |
 
 ---
 
@@ -184,15 +184,18 @@ shared contract is what prevents client/server drift. pnpm's content-addressed s
 fast and disk-cheap; Turborepo caches `lint`/`typecheck`/`test`/`build` per package so CI only
 re-runs what changed. Both free and open source; Turborepo requires no account for local caching.
 
-### Vitest 3 + fast-check + Testcontainers + Playwright
+### Vitest 3 + fast-check + embedded-postgres + Playwright
 
 Vitest shares Vite's transform pipeline, so there is one config and near-instant watch mode.
 **fast-check** is the reason `game-core` is pure: property-based tests generate thousands of
 player/punishment configurations and assert the distribution invariants, which is the only
-credible way to test a randomised algorithm. **Testcontainers** spins a real PostgreSQL per
-integration run — no SQLite substitute, because we depend on PostgreSQL-specific constraints and
-testing against a different engine would validate nothing. **Playwright** drives three browser
-contexts at once to play a real three-player game end to end, including the WebSocket traffic.
+credible way to test a randomised algorithm. **embedded-postgres** runs the official PostgreSQL
+16 binaries for the integration suite when no database is already available — no SQLite
+substitute and no WASM approximation, because we depend on PostgreSQL-specific constraints and
+on their _error_ behaviour, so anything that is merely Postgres-like would validate nothing (see
+[08](08-testing.md) for the alternatives we rejected and why). **Playwright** drives three
+browser contexts at once to play a real three-player game end to end, including WebSocket
+traffic.
 
 ### ESLint 9 flat config + Prettier
 

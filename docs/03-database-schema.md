@@ -383,3 +383,26 @@ Default grace window: **24 hours** after `COMPLETED`, configurable via `SESSION_
   messages, the domain for rules, and the database as the constraint that cannot be bypassed.
 - Migrations are `prisma migrate` SQL files, reviewed in PRs, applied with `migrate deploy` in
   release. No schema drift, no `db push` outside local scratch work.
+
+## What Prisma cannot express
+
+Four kinds of object in this schema have to be hand-written SQL inside the migration, because
+Prisma's schema language has no syntax for them:
+
+| Object                          | Why it matters                                                           |
+| ------------------------------- | ------------------------------------------------------------------------ |
+| `citext`, `pgcrypto` extensions | Case-insensitive identity; randomness for the id generator               |
+| `uuid_generate_v7()`            | Time-ordered primary keys (PostgreSQL 18 has this in core; we target 16) |
+| Partial unique indexes          | One owner per group; one live session per group                          |
+| `CHECK` constraints             | Punishment range, blocked-iff-level-3, non-blank bodies, positive quotas |
+
+**The consequence is a real hazard.** `prisma migrate dev` diffs `schema.prisma` against the
+migration history; it cannot see any of the above, so a generated migration will contain
+statements _dropping_ them. Every generated migration must be read and edited before it is
+committed.
+
+The mitigation is a test, not a convention: the `hand-written DDL is present` block in
+`tests/integration/schema-constraints.test.ts` asserts each of these objects by name, and the
+rest of that suite proves each constraint actually rejects bad data. If someone runs
+`migrate dev` and commits the result unedited, CI goes red immediately rather than a punishment
+counter quietly accepting the value 7 in production.

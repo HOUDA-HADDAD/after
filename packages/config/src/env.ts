@@ -31,6 +31,11 @@ export const envSchema = z
     DATABASE_URL: z.string().url().startsWith('postgres'),
     /** Unpooled connection used only by `prisma migrate deploy`. */
     DIRECT_DATABASE_URL: z.string().url().startsWith('postgres').optional(),
+    /**
+     * Tests only. When set, the integration suite runs against this real PostgreSQL; when absent
+     * it falls back to an in-process PGlite (docs/08-testing.md).
+     */
+    TEST_DATABASE_URL: z.string().url().startsWith('postgres').optional(),
 
     /* ---- Sessions ------------------------------------------------------------------ */
     SESSION_SECRET: z.string().min(32, 'SESSION_SECRET must be at least 32 characters'),

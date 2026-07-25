@@ -7,9 +7,9 @@ with a single theme, everyone writes one anonymous text, texts are randomly redi
 players answer, the table talks — and only at the very end, only if you asked for it,
 do you find out who wrote what.
 
-> **Status: design phase.** No application code has been written yet. This repository
-> currently contains the engineering design that will be implemented. Read the documents
-> below in order.
+> **Status: Phase 1 of 10 complete.** Foundations and the data layer are built and tested; the
+> schema, migrations, repositories and quality gates are in place. Authentication is next.
+> See the [roadmap](docs/06-roadmap.md), and read the design documents below in order.
 
 ---
 
@@ -37,6 +37,21 @@ sessions for auth. All game rules — random distribution, punishment escalation
 transitions, and who is allowed to see whose name — live in a pure, dependency-free
 `@aftergame/game-core` package that can be exhaustively property-tested without a database.
 Everything runs free: `docker compose up` locally, and a no-cost hosting path in production.
+
+## Running it
+
+```bash
+pnpm install && cp .env.example .env
+pnpm dev
+```
+
+Tests need no database setup — they start their own PostgreSQL 16 if none is configured:
+
+```bash
+pnpm verify
+```
+
+Full instructions, including the Docker-optional path, are in [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Cost
 

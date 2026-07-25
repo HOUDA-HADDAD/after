@@ -22,6 +22,18 @@ const PRISMA_MODULES = /^(@prisma\/client|\.prisma\/client|@aftergame\/db)/;
 
 const isAllowed = (filename) => ALLOWED_PATHS.some((pattern) => pattern.test(filename));
 
+/**
+ * Type-only imports are fine anywhere.
+ *
+ * The rule exists to stop query construction leaking out of repositories. A type is erased at
+ * compile time and cannot touch the database — and services legitimately need to name the
+ * entities they pass around (`Prisma.TransactionClient`, `Group`, …).
+ */
+const isTypeOnlyImport = (node) =>
+  node.importKind === 'type' ||
+  (node.specifiers.length > 0 &&
+    node.specifiers.every((specifier) => specifier.importKind === 'type'));
+
 /** @type {import('eslint').Rule.RuleModule} */
 export default {
   meta: {
@@ -45,9 +57,11 @@ export default {
 
     return {
       ImportDeclaration(node) {
-        if (typeof node.source.value === 'string' && PRISMA_MODULES.test(node.source.value)) {
-          context.report({ node, messageId: 'import' });
-        }
+        if (typeof node.source.value !== 'string') return;
+        if (!PRISMA_MODULES.test(node.source.value)) return;
+        if (isTypeOnlyImport(node)) return;
+
+        context.report({ node, messageId: 'import' });
       },
 
       // `prisma.user.findMany(...)`, `this.prisma.$transaction(...)`, `app.prisma...`

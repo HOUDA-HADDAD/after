@@ -21,6 +21,8 @@ services:
       - '5432:5432'
     volumes:
       - postgres-data:/var/lib/postgresql/data
+      # Runs once on first initialisation; creates the integration-test database.
+      - ./docker/initdb:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U aftergame -d aftergame']
       interval: 5s

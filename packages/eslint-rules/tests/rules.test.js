@@ -1,4 +1,5 @@
 import { RuleTester } from 'eslint';
+import tsParser from '@typescript-eslint/parser';
 import { describe, it, expect } from 'vitest';
 import { rules } from '../src/index.js';
 
@@ -9,6 +10,11 @@ RuleTester.afterAll = () => {};
 
 const ruleTester = new RuleTester({
   languageOptions: { ecmaVersion: 2023, sourceType: 'module' },
+});
+
+/** `import type` is TypeScript syntax, so those cases need the TS parser. */
+const tsRuleTester = new RuleTester({
+  languageOptions: { parser: tsParser, ecmaVersion: 2023, sourceType: 'module' },
 });
 
 const api = (p) => `/repo/apps/api/src/${p}`;
@@ -45,6 +51,31 @@ describe('no-prisma-outside-repositories', () => {
         code: `export const run = (app) => app.prisma.$transaction([]);`,
         filename: api('modules/sessions/sessions.service.ts'),
         errors: [{ messageId: 'usage' }],
+      },
+    ],
+  });
+});
+
+describe('no-prisma-outside-repositories: type-only imports', () => {
+  tsRuleTester.run('no-prisma-outside-repositories', rules['no-prisma-outside-repositories'], {
+    valid: [
+      // Types are erased at compile time and cannot touch the database, so a service naming an
+      // entity is fine — otherwise the rule would force `any` at every layer boundary.
+      {
+        code: `import type { PrismaClient } from '@prisma/client';`,
+        filename: api('app.ts'),
+      },
+      {
+        code: `import { type Group, type Prisma } from '@prisma/client';`,
+        filename: api('modules/groups/groups.service.ts'),
+      },
+    ],
+    invalid: [
+      // A mixed import still brings the runtime client in.
+      {
+        code: `import { PrismaClient, type Group } from '@prisma/client';`,
+        filename: api('modules/groups/groups.service.ts'),
+        errors: [{ messageId: 'import' }],
       },
     ],
   });

@@ -32,7 +32,8 @@ suite; a deliberately unused variable fails the build.
   express them)
 - Initial migration + idempotent theme seed (the three defaults with capability flags)
 - Repository pattern established with one worked example
-- Test database lifecycle helpers (Testcontainers, with a compose fallback)
+- Test database lifecycle helpers: an existing PostgreSQL via `TEST_DATABASE_URL`, otherwise an
+  embedded PostgreSQL 16 started for the run — so DB tests need no Docker
 
 **Exit:** `migrate deploy` on an empty database produces the full schema; seed is idempotent
 across repeated runs; an integration test asserts every declared constraint actually rejects bad

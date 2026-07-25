@@ -37,6 +37,8 @@ jobs:
 
     env:
       DATABASE_URL: postgresql://aftergame:aftergame@localhost:5432/aftergame_test
+      # Tier 1: use the service container above rather than booting an embedded server.
+      TEST_DATABASE_URL: postgresql://aftergame:aftergame@localhost:5432/aftergame_test
       SESSION_SECRET: ci-session-secret-at-least-32-characters
       APP_ORIGIN: http://localhost:5173
 

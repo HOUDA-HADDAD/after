@@ -17,6 +17,7 @@
     "clean": "rimraf .turbo coverage"
   },
   "devDependencies": {
+    "@typescript-eslint/parser": "^8",
     "eslint": "^9.17.0",
     "vitest": "^3.0.5"
   }

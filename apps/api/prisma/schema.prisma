@@ -1,0 +1,480 @@
+// Aftergame database schema — implements docs/03-database-schema.md.
+//
+// Two zones with different lifetimes:
+//   • Durable   — users, groups, memberships, invitations, punishment audit. Kept forever.
+//   • Transient — everything under a game session. Hard-deleted after the grace window (D11).
+//
+// Every foreign key *within* the transient zone cascades, so purging a finished game is a single
+// `DELETE FROM game_sessions WHERE id = $1`. Keys crossing into the durable zone restrict or null
+// out instead, so the audit trail survives the purge.
+//
+// NOTE: some constraints in docs/03 cannot be expressed in Prisma schema language — partial
+// unique indexes, CHECK constraints, and the uuid_generate_v7() default. Those live in
+// hand-written migration SQL and are covered by tests/integration/schema-constraints.test.ts,
+// which fails loudly if a future migration drops one. See docs/03-database-schema.md.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------------------------
+
+enum GroupRole {
+  OWNER
+  COHOST
+  MEMBER
+
+  @@map("group_role")
+}
+
+enum MembershipStatus {
+  ACTIVE
+  GAME_BLOCKED
+
+  @@map("membership_status")
+}
+
+enum PunishmentAction {
+  PUNISH
+  FORGIVE
+  AUTO_RESET
+
+  @@map("punishment_action")
+}
+
+enum SessionStatus {
+  LOBBY
+  WRITING
+  ANSWERING
+  REVIEW
+  REVEAL
+  COMPLETED
+  CANCELLED
+  ABANDONED
+
+  @@map("session_status")
+}
+
+enum RevealScope {
+  TEXTS
+  TEXTS_AND_ANSWERS
+
+  @@map("reveal_scope")
+}
+
+enum ContentStatus {
+  DRAFT
+  SUBMITTED
+
+  @@map("content_status")
+}
+
+enum AssignmentStatus {
+  PENDING
+  ANSWERED
+  SKIPPED
+
+  @@map("assignment_status")
+}
+
+enum RevealChoice {
+  YES
+  NO
+
+  @@map("reveal_choice")
+}
+
+// ---------------------------------------------------------------------------------------------
+// Durable zone
+// ---------------------------------------------------------------------------------------------
+
+model User {
+  id           String   @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  /// citext, so `A@x.com` and `a@x.com` are the same account.
+  username     String   @unique @db.Citext
+  email        String   @unique @db.Citext
+  /// argon2id encoded string — carries its own salt and parameters.
+  passwordHash String   @map("password_hash")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  authSessions       AuthSession[]
+  ownedGroups        Group[]            @relation("GroupOwner")
+  memberships        GroupMembership[]
+  invitationsCreated Invitation[]       @relation("InvitationCreator")
+  punishmentsAgainst PunishmentEvent[]  @relation("PunishmentTarget")
+  punishmentsIssued  PunishmentEvent[]  @relation("PunishmentActor")
+  sessionsCreated    GameSession[]      @relation("SessionCreator")
+  gamePlayers        GamePlayer[]
+
+  @@map("users")
+}
+
+model AuthSession {
+  id     String @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  userId String @map("user_id") @db.Uuid
+
+  /// SHA-256 of the opaque cookie token. The raw token is never stored, so a database dump
+  /// yields no usable sessions (docs/07-security.md).
+  tokenHash  Bytes    @unique @map("token_hash")
+  expiresAt  DateTime @map("expires_at") @db.Timestamptz(3)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  lastUsedAt DateTime @default(now()) @map("last_used_at") @db.Timestamptz(3)
+  userAgent  String?  @map("user_agent") @db.VarChar(400)
+  /// Hashed, never raw — used only for "sign out other devices".
+  ipHash     String?  @map("ip_hash") @db.VarChar(64)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("auth_sessions")
+}
+
+model Group {
+  id        String   @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  name      String   @db.VarChar(60)
+  ownerId   String   @map("owner_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  /// Restrict: the owner cannot vanish and leave a group headless.
+  owner            User              @relation("GroupOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  memberships      GroupMembership[]
+  invitations      Invitation[]
+  punishmentEvents PunishmentEvent[]
+  sessions         GameSession[]
+
+  @@index([ownerId])
+  @@map("groups")
+}
+
+/// The heart of the authorization model, and the home of the punishment counter.
+///
+/// The counter lives here — keyed by (group, user) — which is what makes punishments group-local
+/// by construction: there is no way to express it wrongly.
+model GroupMembership {
+  id      String @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  groupId String @map("group_id") @db.Uuid
+  userId  String @map("user_id") @db.Uuid
+
+  role   GroupRole        @default(MEMBER)
+  status MembershipStatus @default(ACTIVE)
+
+  /// 0–3, enforced by a CHECK constraint. 3 ⟺ status GAME_BLOCKED.
+  consecutivePunishments Int      @default(0) @map("consecutive_punishments") @db.SmallInt
+  joinedAt               DateTime @default(now()) @map("joined_at") @db.Timestamptz(3)
+
+  group       Group        @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  gamePlayers GamePlayer[]
+
+  @@unique([groupId, userId])
+  @@index([userId])
+  @@map("group_memberships")
+}
+
+model Invitation {
+  id      String @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  groupId String @map("group_id") @db.Uuid
+
+  /// 8 chars of Crockford base32 (no I, L, O, U) — unambiguous when read aloud at a party.
+  code        String    @unique @db.VarChar(10)
+  createdById String?   @map("created_by_id") @db.Uuid
+  expiresAt   DateTime? @map("expires_at") @db.Timestamptz(3)
+  maxUses     Int?      @map("max_uses")
+  useCount    Int       @default(0) @map("use_count")
+  revokedAt   DateTime? @map("revoked_at") @db.Timestamptz(3)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  group     Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  createdBy User? @relation("InvitationCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([groupId])
+  @@map("invitations")
+}
+
+/// Append-only audit log. Survives game purges, which is what makes "consecutive punishments"
+/// defensible rather than something a host could be accused of inventing.
+model PunishmentEvent {
+  id           String @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  groupId      String @map("group_id") @db.Uuid
+  targetUserId String @map("target_user_id") @db.Uuid
+
+  actorUserId String?          @map("actor_user_id") @db.Uuid
+  action      PunishmentAction
+  /// Counter value *after* the action, so the counter is reconstructible from the log alone.
+  resultingLevel Int           @map("resulting_level") @db.SmallInt
+  /// SetNull, so the audit row outlives the purged session it refers to.
+  gameSessionId String?        @map("game_session_id") @db.Uuid
+  reason        String?        @db.VarChar(200)
+  createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  group       Group        @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  targetUser  User         @relation("PunishmentTarget", fields: [targetUserId], references: [id], onDelete: Cascade)
+  actorUser   User?        @relation("PunishmentActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  gameSession GameSession? @relation(fields: [gameSessionId], references: [id], onDelete: SetNull)
+
+  @@index([groupId, targetUserId])
+  @@index([groupId, createdAt])
+  @@map("punishment_events")
+}
+
+/// Themes are data, not `if` statements (D15).
+///
+/// Capability flags drive behaviour: comments and author guessing are enabled for Anecdotes
+/// because its row says so, not because of a hardcoded branch on the slug.
+model Theme {
+  id   String @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  slug String @unique @db.VarChar(40)
+
+  name              String
+  description       String
+  writePrompt       String  @map("write_prompt")
+  writePlaceholder  String  @map("write_placeholder")
+  answerPrompt      String  @map("answer_prompt")
+  icon              String  @db.VarChar(40)
+  supportsComments  Boolean @default(false) @map("supports_comments")
+  supportsAuthorGuess Boolean @default(false) @map("supports_author_guess")
+  /// Seeded defaults cannot be deleted.
+  isSystem          Boolean @default(true) @map("is_system")
+  sortOrder         Int     @default(0) @map("sort_order")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  sessions GameSession[]
+
+  @@map("themes")
+}
+
+// ---------------------------------------------------------------------------------------------
+// Transient zone — purged after the grace window (D11)
+// ---------------------------------------------------------------------------------------------
+
+model GameSession {
+  id      String @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  groupId String @map("group_id") @db.Uuid
+  themeId String @map("theme_id") @db.Uuid
+
+  createdById String?       @map("created_by_id") @db.Uuid
+  status      SessionStatus @default(LOBBY)
+
+  /// Participant count at roster lock — equals the number of texts to be authored (D1).
+  requiredTextCount Int         @default(0) @map("required_text_count")
+  /// Seeds the distribution PRNG, so any distribution is reproducible for debugging without
+  /// retaining game content.
+  distributionSeed  BigInt      @default(0) @map("distribution_seed")
+  /// Shuffles timeline order so it never mirrors submission order (the fastest typist would
+  /// otherwise be identifiable).
+  displaySeed       BigInt      @default(0) @map("display_seed")
+  revealScope       RevealScope @default(TEXTS_AND_ANSWERS) @map("reveal_scope")
+  settings          Json        @default("{}")
+  /// Optimistic concurrency on host actions.
+  version           Int         @default(0)
+
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  startedAt      DateTime? @map("started_at") @db.Timestamptz(3)
+  endedAt        DateTime? @map("ended_at") @db.Timestamptz(3)
+  lastActivityAt DateTime  @default(now()) @map("last_activity_at") @db.Timestamptz(3)
+  /// Set when entering COMPLETED; the purge job's index.
+  purgeAfter     DateTime? @map("purge_after") @db.Timestamptz(3)
+
+  group     Group  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  theme     Theme  @relation(fields: [themeId], references: [id], onDelete: Restrict)
+  createdBy User?  @relation("SessionCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  players          GamePlayer[]
+  texts            GameText[]
+  assignments      TextAssignment[]
+  answers          Answer[]
+  comments         Comment[]
+  guesses          AuthorGuess[]
+  revealVotes      RevealVote[]
+  punishmentEvents PunishmentEvent[]
+
+  @@index([groupId])
+  @@index([purgeAfter])
+  @@index([lastActivityAt])
+  @@map("game_sessions")
+}
+
+/// The session roster, locked at start.
+///
+/// Every in-game entity references a `GamePlayer.id`, never a `userId`. This table is the only
+/// mapping from a session identity back to a real account, and purging the session destroys it
+/// along with the content — the indirection is a privacy feature, not bookkeeping.
+model GamePlayer {
+  id           String @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  sessionId    String @map("session_id") @db.Uuid
+  userId       String @map("user_id") @db.Uuid
+  membershipId String @map("membership_id") @db.Uuid
+
+  /// Snapshot of the group counter at distribution time, 0–2.
+  punishmentLevelAtStart Int     @default(0) @map("punishment_level_at_start") @db.SmallInt
+  /// Drives the "completed a game unpunished resets to 0" rule (D5).
+  wasPunishedThisSession Boolean @default(false) @map("was_punished_this_session")
+  /// The clamped demand d(p), snapshotted at distribution (D3).
+  receiveQuota           Int     @default(1) @map("receive_quota")
+  /// Denormalised for the `n / N` progress counter.
+  textSubmitted          Boolean @default(false) @map("text_submitted")
+
+  joinedAt DateTime  @default(now()) @map("joined_at") @db.Timestamptz(3)
+  leftAt   DateTime? @map("left_at") @db.Timestamptz(3)
+
+  session    GameSession     @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  user       User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  membership GroupMembership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+
+  authoredTexts   GameText[]
+  assignments     TextAssignment[]
+  comments        Comment[]
+  guessesMade     AuthorGuess[]    @relation("GuessGuesser")
+  guessesReceived AuthorGuess[]    @relation("GuessSubject")
+  revealVote      RevealVote?
+
+  @@unique([sessionId, userId])
+  @@index([sessionId])
+  @@index([userId])
+  @@index([membershipId])
+  @@map("game_players")
+}
+
+model GameText {
+  id              String @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  sessionId       String @map("session_id") @db.Uuid
+  authorPlayerId  String @map("author_player_id") @db.Uuid
+
+  body   String        @db.VarChar(1000)
+  status ContentStatus @default(DRAFT)
+  /// Derived from the session display seed, never from insertion order.
+  displayOrder Int      @default(0) @map("display_order")
+
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  submittedAt DateTime? @map("submitted_at") @db.Timestamptz(3)
+
+  session      GameSession      @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  authorPlayer GamePlayer       @relation(fields: [authorPlayerId], references: [id], onDelete: Cascade)
+  assignments  TextAssignment[]
+
+  /// Exactly one text per author (D1).
+  @@unique([sessionId, authorPlayerId])
+  @@index([sessionId])
+  @@map("game_texts")
+}
+
+/// The many-to-many join that makes punishment loads possible.
+///
+/// A punished player answers more texts than there are authors-per-player, so a text can be
+/// assigned to several receivers (D1). The unique constraint below is the database-level
+/// enforcement of "never two texts by the same author to one receiver" (D2) — a bug in the
+/// distribution algorithm aborts the transaction rather than corrupting a game.
+model TextAssignment {
+  id               String @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  sessionId        String @map("session_id") @db.Uuid
+  textId           String @map("text_id") @db.Uuid
+  receiverPlayerId String @map("receiver_player_id") @db.Uuid
+
+  status    AssignmentStatus @default(PENDING)
+  createdAt DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  session        GameSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  text           GameText    @relation(fields: [textId], references: [id], onDelete: Cascade)
+  receiverPlayer GamePlayer  @relation(fields: [receiverPlayerId], references: [id], onDelete: Cascade)
+  answer         Answer?
+
+  @@unique([textId, receiverPlayerId])
+  /// The hottest query in the app: "what do I have to answer?"
+  @@index([receiverPlayerId])
+  @@index([sessionId])
+  @@map("text_assignments")
+}
+
+model Answer {
+  id           String @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  assignmentId String @unique @map("assignment_id") @db.Uuid
+  /// Denormalised for purge and session-scoped reads.
+  sessionId    String @map("session_id") @db.Uuid
+
+  body   String        @db.VarChar(1000)
+  status ContentStatus @default(DRAFT)
+
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  submittedAt DateTime? @map("submitted_at") @db.Timestamptz(3)
+
+  /// The author is `assignment.receiverPlayerId` — never duplicated here, so it cannot drift.
+  assignment TextAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  session    GameSession    @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  comments   Comment[]
+
+  @@index([sessionId])
+  @@map("answers")
+}
+
+model Comment {
+  id             String @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  sessionId      String @map("session_id") @db.Uuid
+  answerId       String @map("answer_id") @db.Uuid
+  authorPlayerId String @map("author_player_id") @db.Uuid
+
+  body String @db.VarChar(500)
+  /// Chosen per comment at post time. An anonymous comment stays anonymous forever, in every
+  /// phase, to everyone — that promise is made when Post is pressed and we do not break it (D17).
+  isAnonymous Boolean  @default(true) @map("is_anonymous")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  session      GameSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  answer       Answer      @relation(fields: [answerId], references: [id], onDelete: Cascade)
+  authorPlayer GamePlayer  @relation(fields: [authorPlayerId], references: [id], onDelete: Cascade)
+
+  @@index([answerId, createdAt])
+  @@index([sessionId])
+  @@map("comments")
+}
+
+model AuthorGuess {
+  id               String @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  sessionId        String @map("session_id") @db.Uuid
+  textId           String @map("text_id") @db.Uuid
+  guesserPlayerId  String @map("guesser_player_id") @db.Uuid
+  guessedPlayerId  String @map("guessed_player_id") @db.Uuid
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  session       GameSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  guesserPlayer GamePlayer  @relation("GuessGuesser", fields: [guesserPlayerId], references: [id], onDelete: Cascade)
+  guessedPlayer GamePlayer  @relation("GuessSubject", fields: [guessedPlayerId], references: [id], onDelete: Cascade)
+
+  /// One guess per person per text, changeable until REVIEW closes.
+  @@unique([textId, guesserPlayerId])
+  @@index([sessionId])
+  @@map("author_guesses")
+}
+
+/// The most access-restricted table in the system.
+///
+/// Read by exactly one repository method, which answers a single question — did every remaining
+/// participant vote YES? (D8). The yes/no split is never computed, returned or logged (D8a);
+/// publishing it would deanonymise the vote in a small group.
+model RevealVote {
+  id        String @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  sessionId String @map("session_id") @db.Uuid
+  playerId  String @unique @map("player_id") @db.Uuid
+
+  choice    RevealChoice
+  createdAt DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  session GameSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  player  GamePlayer  @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, playerId])
+  @@index([sessionId])
+  @@map("reveal_votes")
+}
