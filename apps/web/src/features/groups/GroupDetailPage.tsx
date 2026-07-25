@@ -1,8 +1,12 @@
-import { useCallback, useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router';
-import type { GroupDetailDto, InvitationDto } from '@aftergame/shared';
-import { AppHeader } from '../../shared/components/AppHeader.js';
+import { useState } from 'react';
+import { useNavigate, useParams } from 'react-router';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
+import { Copy, Gamepad2 } from 'lucide-react';
+import { Badge, Button, Card, EmptyState, Skeleton } from '@aftergame/ui';
+import { queryKeys } from '../../shared/api/queries.js';
 import { messageFor } from '../../shared/lib/error-copy.js';
+import { useGroupSubscription } from '../../shared/realtime/SocketProvider.js';
 import { useSession } from '../auth/SessionProvider.js';
 import { canModerate, MemberRow } from './MemberRow.js';
 import { PunishmentHistory } from './PunishmentHistory.js';
@@ -14,83 +18,72 @@ import {
   listInvitations,
   listPunishments,
   punishMember,
-  type PunishmentEventDto,
 } from './groups.api.js';
 
 export default function GroupDetailPage() {
   const { groupId = '' } = useParams();
   const navigate = useNavigate();
-
+  const queryClient = useQueryClient();
   const { state } = useSession();
 
-  const [group, setGroup] = useState<GroupDetailDto | null>(null);
-  const [invitations, setInvitations] = useState<InvitationDto[]>([]);
-  const [events, setEvents] = useState<PunishmentEventDto[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  const isHost = group !== null && group.viewerRole !== 'MEMBER';
+  useGroupSubscription(groupId);
+
+  const group = useQuery({ queryKey: queryKeys.group(groupId), queryFn: () => getGroup(groupId) });
+  const isHost = group.data !== undefined && group.data.viewerRole !== 'MEMBER';
   const viewerId = state.status === 'authenticated' ? state.user.id : '';
 
-  const refresh = useCallback(async () => {
-    try {
-      const detail = await getGroup(groupId);
-      setGroup(detail);
-      setEvents(await listPunishments(groupId));
+  const punishments = useQuery({
+    queryKey: queryKeys.punishments(groupId),
+    queryFn: () => listPunishments(groupId),
+  });
 
-      if (detail.viewerRole !== 'MEMBER') {
-        setInvitations(await listInvitations(groupId));
-      }
-    } catch (caught) {
-      setError(messageFor(caught));
-    }
-  }, [groupId]);
+  const invitations = useQuery({
+    queryKey: queryKeys.invitations(groupId),
+    queryFn: () => listInvitations(groupId),
+    enabled: isHost,
+  });
 
-  /** Punish and forgive share everything but the call, so they share the handler. */
-  const moderate = async (userId: string, action: 'punish' | 'forgive') => {
-    setError(null);
-    setBusy(true);
-
-    try {
-      await (action === 'punish' ? punishMember : forgiveMember)(groupId, userId);
-      await refresh();
-    } catch (caught) {
-      setError(messageFor(caught));
-    } finally {
-      setBusy(false);
-    }
+  const refresh = async (): Promise<void> => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: queryKeys.group(groupId) }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.punishments(groupId) }),
+    ]);
   };
 
-  useEffect(() => {
-    void refresh();
-  }, [refresh]);
+  const moderate = useMutation({
+    mutationFn: ({ userId, action }: { userId: string; action: 'punish' | 'forgive' }) =>
+      (action === 'punish' ? punishMember : forgiveMember)(groupId, userId),
+    onSuccess: refresh,
+    onError: (error: unknown) => {
+      toast.error(messageFor(error));
+    },
+  });
 
-  const handleNewCode = async () => {
-    setBusy(true);
-    try {
-      await createInvitation(groupId);
-      await refresh();
-    } catch (caught) {
-      setError(messageFor(caught));
-    } finally {
-      setBusy(false);
-    }
-  };
+  const newCode = useMutation({
+    mutationFn: () => createInvitation(groupId),
+    onSuccess: async () => {
+      toast.success('New room code ready');
+      await queryClient.invalidateQueries({ queryKey: queryKeys.invitations(groupId) });
+    },
+    onError: (error: unknown) => {
+      toast.error(messageFor(error));
+    },
+  });
 
-  const handleLeave = async () => {
-    setBusy(true);
-    try {
-      await leaveGroup(groupId);
+  const leave = useMutation({
+    mutationFn: () => leaveGroup(groupId),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.groups });
       await navigate('/', { replace: true });
-    } catch (caught) {
-      setError(messageFor(caught));
-    } finally {
-      setBusy(false);
-    }
-  };
+    },
+    onError: (error: unknown) => {
+      toast.error(messageFor(error));
+    },
+  });
 
-  const copyCode = async (code: string) => {
+  const copyCode = async (code: string): Promise<void> => {
     try {
       await navigator.clipboard.writeText(code);
       setCopied(true);
@@ -98,136 +91,156 @@ export default function GroupDetailPage() {
         setCopied(false);
       }, 2000);
     } catch {
-      // Clipboard access can be denied; the code is on screen to read either way.
+      // Clipboard permission can be denied; the code is on screen to read either way.
     }
   };
 
-  if (error !== null && group === null) {
+  if (group.isPending) {
     return (
-      <div className="min-h-dvh">
-        <AppHeader />
-        <main className="mx-auto max-w-3xl px-6 py-10">
-          <p className="text-sm text-red-500">{error}</p>
-          <Link to="/" className="mt-3 inline-block text-sm text-[var(--color-accent)]">
+      <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6" aria-busy="true">
+        <Skeleton className="h-7 w-48" />
+        <Skeleton className="mt-6 h-32 w-full" />
+      </div>
+    );
+  }
+
+  if (group.isError || group.data === undefined) {
+    return (
+      <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
+        <Card className="p-6">
+          <p className="text-sm">{messageFor(group.error)}</p>
+          <Button className="mt-3" size="sm" onClick={() => void navigate('/')}>
             Back to your groups
-          </Link>
-        </main>
+          </Button>
+        </Card>
       </div>
     );
   }
 
-  if (group === null) {
-    return (
-      <div className="min-h-dvh">
-        <AppHeader />
-        <main className="mx-auto max-w-3xl px-6 py-10" role="status">
-          <p className="text-sm text-[var(--color-ink-muted)]">Loading…</p>
-        </main>
-      </div>
-    );
-  }
-
-  const currentCode = invitations[0]?.code;
+  const currentCode = invitations.data?.[0]?.code;
 
   return (
-    <div className="min-h-dvh">
-      <AppHeader />
-
-      <main className="mx-auto grid max-w-4xl gap-8 px-6 py-10 md:grid-cols-[1fr_18rem]">
-        <section className="order-2 md:order-1">
-          <Link to="/" className="text-sm text-[var(--color-ink-muted)] hover:underline">
-            ← Your groups
-          </Link>
-
-          <h1 className="mt-2 text-2xl font-semibold tracking-tight">{group.name}</h1>
-          <p className="mt-1 text-sm text-[var(--color-ink-muted)]">
-            {group.memberCount} {group.memberCount === 1 ? 'member' : 'members'}
+    <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
+      <header className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold tracking-tight">{group.data.name}</h1>
+          <p className="mt-0.5 text-sm text-[var(--color-ink-muted)]">
+            {group.data.memberCount} {group.data.memberCount === 1 ? 'member' : 'members'}
           </p>
+        </div>
 
-          <div className="mt-6 rounded-[var(--radius-card)] border border-dashed border-[var(--color-border)] p-6 text-center">
-            <p className="font-medium">No game running</p>
-            <p className="mt-1 text-sm text-[var(--color-ink-muted)]">
-              Starting a game arrives in Phase 6.
-            </p>
-          </div>
+        {group.data.viewerRole !== 'MEMBER' && (
+          <Badge tone="accent">{group.data.viewerRole.toLowerCase()}</Badge>
+        )}
+      </header>
 
-          <section className="mt-8">
-            <h2 className="text-xs font-medium tracking-wide text-[var(--color-ink-muted)] uppercase">
-              Punishment history
-            </h2>
-            <PunishmentHistory events={events} />
-          </section>
+      <section className="mt-6">
+        <EmptyState
+          icon={<Gamepad2 size={28} aria-hidden="true" />}
+          title="No game running"
+          description="Starting a game arrives with the game screens in the next phase."
+        />
+      </section>
 
-          <div aria-live="polite">
-            {error !== null && <p className="mt-4 text-sm text-red-500">{error}</p>}
-          </div>
+      {isHost && (
+        <Card className="mt-6 p-5">
+          <h2 className="text-xs font-medium tracking-wide text-[var(--color-ink-muted)] uppercase">
+            Room code
+          </h2>
 
-          {group.viewerRole !== 'OWNER' && (
-            <button
-              type="button"
-              onClick={() => void handleLeave()}
-              disabled={busy}
-              className="mt-6 rounded-md border border-[var(--color-border)] px-3 py-1.5 text-sm transition-colors hover:border-red-500 hover:text-red-500 disabled:opacity-60"
-            >
-              Leave group
-            </button>
-          )}
-        </section>
+          {invitations.isPending && <Skeleton className="mt-2 h-11 w-40" />}
 
-        <aside className="order-1 md:order-2">
-          {isHost && (
-            <div className="mb-6 rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface-raised)] p-4">
-              <h2 className="text-xs font-medium tracking-wide text-[var(--color-ink-muted)] uppercase">
-                Room code
-              </h2>
-
-              {currentCode === undefined ? (
-                <p className="mt-2 text-sm text-[var(--color-ink-muted)]">No active code.</p>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => void copyCode(currentCode)}
-                  className="mt-2 w-full rounded-md border border-[var(--color-border)] px-3 py-2 font-mono text-lg tracking-widest transition-colors hover:border-[var(--color-accent)]"
-                >
-                  {currentCode}
-                </button>
-              )}
-
-              <div aria-live="polite" className="min-h-4">
-                {copied && <p className="mt-1 text-xs text-[var(--color-ink-muted)]">Copied</p>}
-              </div>
-
-              <button
-                type="button"
-                onClick={() => void handleNewCode()}
-                disabled={busy}
-                className="mt-1 text-xs text-[var(--color-accent)] hover:underline disabled:opacity-60"
+          {currentCode !== undefined && (
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <Button
+                onClick={() => void copyCode(currentCode)}
+                className="font-mono text-lg tracking-widest"
+                aria-label={`Copy room code ${currentCode.split('').join(' ')}`}
               >
-                Generate a new code
-              </button>
+                {currentCode}
+                <Copy size={14} aria-hidden="true" />
+              </Button>
+
+              <span aria-live="polite" className="text-xs text-[var(--color-ink-muted)]">
+                {copied ? 'Copied' : ''}
+              </span>
             </div>
           )}
 
-          <div className="rounded-[var(--radius-card)] border border-[var(--color-border)] p-4">
-            <h2 className="text-xs font-medium tracking-wide text-[var(--color-ink-muted)] uppercase">
-              Members
-            </h2>
-            <ul className="mt-2">
-              {group.members.map((member) => (
-                <MemberRow
-                  key={member.userId}
-                  member={member}
-                  playerCount={group.memberCount}
-                  moderatable={isHost && canModerate(group.viewerRole, viewerId, member)}
-                  busy={busy}
-                  onPunish={() => void moderate(member.userId, 'punish')}
-                  onForgive={() => void moderate(member.userId, 'forgive')}
-                />
-              ))}
-            </ul>
-          </div>
-        </aside>
-      </main>
+          {invitations.data?.length === 0 && (
+            <p className="mt-2 text-sm text-[var(--color-ink-muted)]">No active code.</p>
+          )}
+
+          <Button
+            variant="ghost"
+            size="sm"
+            className="mt-2"
+            pending={newCode.isPending}
+            onClick={() => {
+              newCode.mutate();
+            }}
+          >
+            Generate a new code
+          </Button>
+        </Card>
+      )}
+
+      <section className="mt-6" aria-labelledby="roster-heading">
+        <h2
+          id="roster-heading"
+          className="text-xs font-medium tracking-wide text-[var(--color-ink-muted)] uppercase"
+        >
+          Members
+        </h2>
+
+        <Card className="mt-2 px-4">
+          <ul>
+            {group.data.members.map((member) => (
+              <MemberRow
+                key={member.userId}
+                member={member}
+                playerCount={group.data.memberCount}
+                moderatable={isHost && canModerate(group.data.viewerRole, viewerId, member)}
+                busy={moderate.isPending}
+                onPunish={() => {
+                  moderate.mutate({ userId: member.userId, action: 'punish' });
+                }}
+                onForgive={() => {
+                  moderate.mutate({ userId: member.userId, action: 'forgive' });
+                }}
+              />
+            ))}
+          </ul>
+        </Card>
+      </section>
+
+      <section className="mt-8" aria-labelledby="history-heading">
+        <h2
+          id="history-heading"
+          className="text-xs font-medium tracking-wide text-[var(--color-ink-muted)] uppercase"
+        >
+          Punishment history
+        </h2>
+        {punishments.isPending ? (
+          <Skeleton className="mt-2 h-16 w-full" />
+        ) : (
+          <PunishmentHistory events={punishments.data ?? []} />
+        )}
+      </section>
+
+      {group.data.viewerRole !== 'OWNER' && (
+        <Button
+          variant="danger"
+          size="sm"
+          className="mt-8"
+          pending={leave.isPending}
+          onClick={() => {
+            leave.mutate();
+          }}
+        >
+          Leave group
+        </Button>
+      )}
     </div>
   );
 }

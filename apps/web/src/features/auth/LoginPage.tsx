@@ -2,7 +2,8 @@ import { useState, type FormEvent } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { loginSchema } from '@aftergame/shared';
 import { useSession } from './SessionProvider.js';
-import { AuthCard, Field, FormError, SubmitButton } from './AuthForm.js';
+import { Button, ErrorText, Field } from '@aftergame/ui';
+import { AuthLayout } from './AuthLayout.js';
 import { fieldErrorsFor, messageFor } from '../../shared/lib/error-copy.js';
 
 export default function LoginPage() {
@@ -50,7 +51,7 @@ export default function LoginPage() {
   };
 
   return (
-    <AuthCard
+    <AuthLayout
       title="Sign in"
       subtitle="Welcome back."
       footer={
@@ -66,14 +67,18 @@ export default function LoginPage() {
       }
     >
       <form onSubmit={(event) => void handleSubmit(event)} noValidate>
-        <FormError message={formError} />
+        <div aria-live="polite" className="mb-3 min-h-5">
+          {formError !== null && <ErrorText>{formError}</ErrorText>}
+        </div>
 
         <Field
           id="email"
           label="Email"
           type="email"
           value={email}
-          onChange={setEmail}
+          onChange={(event) => {
+            setEmail(event.target.value);
+          }}
           error={errors.email}
           autoComplete="username"
           disabled={pending}
@@ -84,14 +89,18 @@ export default function LoginPage() {
           label="Password"
           type="password"
           value={password}
-          onChange={setPassword}
+          onChange={(event) => {
+            setPassword(event.target.value);
+          }}
           error={errors.password}
           autoComplete="current-password"
           disabled={pending}
         />
 
-        <SubmitButton pending={pending}>Sign in</SubmitButton>
+        <Button type="submit" variant="primary" pending={pending} className="mt-2 w-full">
+          Sign in
+        </Button>
       </form>
-    </AuthCard>
+    </AuthLayout>
   );
 }

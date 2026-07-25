@@ -2,7 +2,8 @@ import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { PASSWORD_MIN_LENGTH, registerSchema } from '@aftergame/shared';
 import { useSession } from './SessionProvider.js';
-import { AuthCard, Field, FormError, SubmitButton } from './AuthForm.js';
+import { Button, ErrorText, Field } from '@aftergame/ui';
+import { AuthLayout } from './AuthLayout.js';
 import { fieldErrorsFor, messageFor } from '../../shared/lib/error-copy.js';
 
 export default function RegisterPage() {
@@ -48,7 +49,7 @@ export default function RegisterPage() {
   };
 
   return (
-    <AuthCard
+    <AuthLayout
       title="Create an account"
       subtitle="You will need one before you can join a group."
       footer={
@@ -64,13 +65,17 @@ export default function RegisterPage() {
       }
     >
       <form onSubmit={(event) => void handleSubmit(event)} noValidate>
-        <FormError message={formError} />
+        <div aria-live="polite" className="mb-3 min-h-5">
+          {formError !== null && <ErrorText>{formError}</ErrorText>}
+        </div>
 
         <Field
           id="username"
           label="Username"
           value={username}
-          onChange={setUsername}
+          onChange={(event) => {
+            setUsername(event.target.value);
+          }}
           error={errors.username}
           autoComplete="nickname"
           hint="Shown to people in your groups. Letters, numbers, and . _ -"
@@ -82,7 +87,9 @@ export default function RegisterPage() {
           label="Email"
           type="email"
           value={email}
-          onChange={setEmail}
+          onChange={(event) => {
+            setEmail(event.target.value);
+          }}
           error={errors.email}
           autoComplete="email"
           disabled={pending}
@@ -93,15 +100,19 @@ export default function RegisterPage() {
           label="Password"
           type="password"
           value={password}
-          onChange={setPassword}
+          onChange={(event) => {
+            setPassword(event.target.value);
+          }}
           error={errors.password}
           autoComplete="new-password"
           hint={`At least ${String(PASSWORD_MIN_LENGTH)} characters. A short phrase beats a complicated word.`}
           disabled={pending}
         />
 
-        <SubmitButton pending={pending}>Create account</SubmitButton>
+        <Button type="submit" variant="primary" pending={pending} className="mt-2 w-full">
+          Create account
+        </Button>
       </form>
-    </AuthCard>
+    </AuthLayout>
   );
 }

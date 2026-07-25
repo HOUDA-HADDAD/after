@@ -1,0 +1,75 @@
+/*
+ * Design tokens.
+ *
+ * Every colour in the app resolves through a variable declared here, so light and dark stay in
+ * step by construction rather than by discipline: a component that reaches for a raw hex is
+ * visibly wrong. Light is the default, per the brief; `.dark` on the root swaps the palette.
+ *
+ * The palette is stated in OKLCH because its lightness axis is perceptually even — nudging a
+ * surface a step darker looks like one step, which is not true of HSL and is what makes hand-
+ * tuned dark themes drift.
+ */
+
+@theme {
+  /* Surfaces, from furthest back to nearest front. */
+  --color-canvas: oklch(97.5% 0.003 265);
+  --color-surface: oklch(100% 0 0);
+  --color-surface-raised: oklch(100% 0 0);
+  --color-surface-sunken: oklch(96% 0.004 265);
+
+  /* The Slack-like left rail: dark in both themes, which is what makes it read as chrome. */
+  --color-rail: oklch(26% 0.03 285);
+  --color-rail-ink: oklch(88% 0.01 285);
+  --color-rail-active: oklch(38% 0.06 285);
+
+  --color-border: oklch(91% 0.004 265);
+  --color-border-strong: oklch(83% 0.006 265);
+
+  --color-ink: oklch(23% 0.012 265);
+  --color-ink-muted: oklch(52% 0.014 265);
+  --color-ink-subtle: oklch(64% 0.012 265);
+
+  --color-accent: oklch(55% 0.17 275);
+  --color-accent-hover: oklch(49% 0.17 275);
+  --color-accent-ink: oklch(99% 0 0);
+  --color-accent-subtle: oklch(95% 0.03 275);
+
+  --color-danger: oklch(55% 0.2 25);
+  --color-danger-subtle: oklch(95% 0.03 25);
+  --color-success: oklch(58% 0.14 150);
+
+  --radius-control: 0.5rem;
+  --radius-card: 0.75rem;
+
+  /* One shadow, used sparingly. Depth is carried by borders and surface steps instead. */
+  --shadow-card: 0 1px 2px oklch(0% 0 0 / 6%), 0 4px 12px oklch(0% 0 0 / 4%);
+}
+
+:root.dark {
+  --color-canvas: oklch(16% 0.012 265);
+  --color-surface: oklch(20% 0.014 265);
+  --color-surface-raised: oklch(24% 0.016 265);
+  --color-surface-sunken: oklch(14% 0.012 265);
+
+  --color-rail: oklch(14% 0.014 285);
+  --color-rail-ink: oklch(82% 0.012 285);
+  --color-rail-active: oklch(28% 0.04 285);
+
+  --color-border: oklch(30% 0.016 265);
+  --color-border-strong: oklch(40% 0.02 265);
+
+  --color-ink: oklch(95% 0.005 265);
+  --color-ink-muted: oklch(70% 0.014 265);
+  --color-ink-subtle: oklch(58% 0.014 265);
+
+  --color-accent: oklch(72% 0.14 275);
+  --color-accent-hover: oklch(78% 0.14 275);
+  --color-accent-ink: oklch(18% 0.014 265);
+  --color-accent-subtle: oklch(28% 0.05 275);
+
+  --color-danger: oklch(70% 0.16 25);
+  --color-danger-subtle: oklch(28% 0.06 25);
+  --color-success: oklch(72% 0.13 150);
+
+  --shadow-card: 0 1px 2px oklch(0% 0 0 / 40%), 0 4px 12px oklch(0% 0 0 / 30%);
+}

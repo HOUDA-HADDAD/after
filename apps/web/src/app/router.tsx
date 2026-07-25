@@ -1,46 +1,75 @@
+import { useState, type ReactNode } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { Toaster } from 'sonner';
 import { SessionProvider } from '../features/auth/SessionProvider.js';
 import { RequireAuth } from '../features/auth/RequireAuth.js';
 import LoginPage from '../features/auth/LoginPage.js';
 import RegisterPage from '../features/auth/RegisterPage.js';
 import GroupsPage from '../features/groups/GroupsPage.js';
 import GroupDetailPage from '../features/groups/GroupDetailPage.js';
+import { AppShell } from '../shared/components/AppShell.js';
+import { RouteErrorBoundary } from '../shared/components/RouteErrorBoundary.js';
+import { SocketProvider } from '../shared/realtime/SocketProvider.js';
+import { createQueryClient } from '../shared/api/queries.js';
+import { useTheme } from '../shared/hooks/useTheme.js';
 
-/**
- * Application routes.
- *
- * Everything except the two auth screens sits behind `RequireAuth`. Code splitting arrives with
- * the app shell in Phase 7 — at three screens it would cost more than it saves.
- */
-export function AppRouter() {
+/** Everything behind the login wall shares the shell, the socket and the error boundary. */
+function Protected({ children }: { children: ReactNode }) {
   return (
-    <BrowserRouter>
-      <SessionProvider>
-        <Routes>
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
+    <RequireAuth>
+      <SocketProvider>
+        <AppShell>
+          <RouteErrorBoundary>{children}</RouteErrorBoundary>
+        </AppShell>
+      </SocketProvider>
+    </RequireAuth>
+  );
+}
 
-          <Route
-            path="/"
-            element={
-              <RequireAuth>
-                <GroupsPage />
-              </RequireAuth>
-            }
-          />
+/** Toasts follow the app's theme rather than guessing from the system. */
+function ThemedToaster() {
+  const { theme } = useTheme();
 
-          <Route
-            path="/groups/:groupId"
-            element={
-              <RequireAuth>
-                <GroupDetailPage />
-              </RequireAuth>
-            }
-          />
+  return <Toaster theme={theme} position="bottom-right" closeButton richColors />;
+}
 
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </SessionProvider>
-    </BrowserRouter>
+export function AppRouter() {
+  // Created once per app instance, not per render, so the cache survives navigation.
+  const [queryClient] = useState(createQueryClient);
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        <SessionProvider>
+          <ThemedToaster />
+
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
+
+            <Route
+              path="/"
+              element={
+                <Protected>
+                  <GroupsPage />
+                </Protected>
+              }
+            />
+
+            <Route
+              path="/groups/:groupId"
+              element={
+                <Protected>
+                  <GroupDetailPage />
+                </Protected>
+              }
+            />
+
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </SessionProvider>
+      </BrowserRouter>
+    </QueryClientProvider>
   );
 }
