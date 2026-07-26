@@ -42,3 +42,4 @@ pnpm-debug.log*
 # Playwright artefacts: traces, videos and screenshots from failed runs.
 e2e/.playwright/
 playwright-report/
+WHO/
