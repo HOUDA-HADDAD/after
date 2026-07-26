@@ -14,7 +14,8 @@
 // which fails loudly if a future migration drops one. See docs/03-database-schema.md.
 
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
 }
 
 datasource db {
