@@ -24,11 +24,14 @@
     "lucide-react": "^1.27.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "react-router": "^7",
+    "react-router": "^8.3.0",
     "socket.io-client": "^4.8.3",
     "sonner": "^2.0.7"
   },
   "devDependencies": {
+    "@aftergame/api": "workspace:*",
+    "@aftergame/config": "workspace:*",
+    "@prisma/client": "^6",
     "@tailwindcss/vite": "^4.0.0",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^7.0.0",
@@ -38,15 +41,12 @@
     "@types/react-dom": "^19.0.2",
     "@vitejs/plugin-react": "^4.3.4",
     "axe-core": "^4.12.1",
+    "fastify": "^5",
     "happy-dom": "^20.11.1",
+    "prisma": "^6",
     "tailwindcss": "^4.0.0",
     "typescript": "^5.7.2",
     "vite": "^6.0.7",
-    "vitest": "^3.0.5",
-    "@aftergame/api": "workspace:*",
-    "@prisma/client": "^6",
-    "prisma": "^6",
-    "fastify": "^5",
-    "@aftergame/config": "workspace:*"
+    "vitest": "^3.0.5"
   }
 }

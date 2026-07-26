@@ -38,7 +38,8 @@ const toFieldErrors = (error: FastifyError): Record<string, string[]> => {
  * stack traces never reach a client (docs/01-architecture.md §8).
  */
 const errorHandlerPlugin: FastifyPluginAsync<{ env: Env }> = async (app, { env }) => {
-  const servesSpa = env.NODE_ENV === 'production';
+  // Must agree with the static plugin, or a client route 500s instead of loading the app.
+  const servesSpa = env.SERVE_STATIC;
 
   app.setErrorHandler((error: FastifyError, request: FastifyRequest, reply: FastifyReply) => {
     if (AppError.isAppError(error)) {

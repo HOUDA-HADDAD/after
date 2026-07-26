@@ -12,9 +12,13 @@ import type { Env } from '@aftergame/config';
  * One origin means no CORS, `__Host-` cookies with `SameSite=Lax`, WebSocket upgrades on the same
  * host, and a single deploy unit that fits every free tier (docs/01-architecture.md §1,
  * docs/09-deployment.md). In development Vite serves the client and proxies here instead.
+ *
+ * Gated on `SERVE_STATIC`, which defaults to on in production. The knob exists because two real
+ * setups disagree with the default: an SPA behind a CDN with the API serving only `/api`, and the
+ * browser end-to-end suite, which needs the real client from the real server over plain http.
  */
 const staticPlugin: FastifyPluginAsync<{ env: Env }> = async (app, { env }) => {
-  if (env.NODE_ENV !== 'production') return;
+  if (!env.SERVE_STATIC) return;
 
   const here = fileURLToPath(new URL('.', import.meta.url));
   const root = isAbsolute(env.WEB_DIST_PATH)

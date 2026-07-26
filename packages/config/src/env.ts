@@ -17,6 +17,12 @@ const booleanFromEnv = (defaultValue: boolean) =>
 const intFromEnv = (defaultValue: number, min: number, max: number) =>
   z.coerce.number().int().min(min).max(max).default(defaultValue);
 
+/** A boolean with no default, so "unset" stays distinguishable from "explicitly false". */
+const optionalBooleanFromEnv = z
+  .enum(['true', 'false', '1', '0'])
+  .transform((value) => value === 'true' || value === '1')
+  .optional();
+
 export const envSchema = z
   .object({
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
@@ -61,8 +67,18 @@ export const envSchema = z
     LOG_LEVEL: z
       .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'])
       .default('info'),
-    /** Where the built SPA lives, relative to the API process. Production only. */
+    /** Where the built SPA lives, relative to the API process. */
     WEB_DIST_PATH: z.string().default('../web/dist'),
+    /**
+     * Whether this process also serves the built client.
+     *
+     * Defaults to on in production, which is the single-origin deployment the architecture
+     * assumes. It is a knob rather than a hard-wired `NODE_ENV` check for two real cases: putting
+     * the SPA behind a CDN while the API serves only `/api`, and the browser end-to-end suite,
+     * which needs the real client from the real server but cannot run in production mode — that
+     * would require an https origin, and TLS is terminated by the proxy in front, not here.
+     */
+    SERVE_STATIC: optionalBooleanFromEnv,
   })
   .superRefine((env, ctx) => {
     if (env.NODE_ENV !== 'production') return;
@@ -83,7 +99,13 @@ export const envSchema = z
         message: 'APP_ORIGIN must use https in production — secure cookies require it.',
       });
     }
-  });
+  })
+  // Resolved here rather than as a schema default, because it depends on another field: static
+  // serving is on in production unless someone says otherwise.
+  .transform((env) => ({
+    ...env,
+    SERVE_STATIC: env.SERVE_STATIC ?? env.NODE_ENV === 'production',
+  }));
 
 export type Env = z.infer<typeof envSchema>;
 

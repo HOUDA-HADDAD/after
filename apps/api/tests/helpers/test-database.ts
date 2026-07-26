@@ -28,6 +28,30 @@ const freePort = async (): Promise<number> =>
   });
 
 /**
+ * Delete the data directory, allowing for Windows.
+ *
+ * `server.stop()` resolves when the process exits, which is not the same as Windows having
+ * released its file handles — so the very next `rmSync` can fail with EPERM. It shows up as a
+ * suite that passes every assertion and then fails at teardown, most often when two suites run at
+ * once and the machine is busy. A few short retries turn that into what it should have been: a
+ * temporary directory going away a moment later.
+ *
+ * The directory is under the OS temp root, so giving up quietly is also correct — the worst case
+ * is a few megabytes the operating system cleans up later.
+ */
+async function removeWithRetry(dir: string): Promise<void> {
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    try {
+      rmSync(dir, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
+
+      return;
+    } catch {
+      await new Promise((resolve) => setTimeout(resolve, 150 * (attempt + 1)));
+    }
+  }
+}
+
+/**
  * Start a PostgreSQL for the integration suite.
  *
  * Two tiers, in order:
@@ -87,7 +111,7 @@ export async function startTestDatabase(): Promise<TestDatabase> {
       try {
         await server.stop();
       } finally {
-        rmSync(dataDir, { recursive: true, force: true });
+        await removeWithRetry(dataDir);
       }
     },
   };

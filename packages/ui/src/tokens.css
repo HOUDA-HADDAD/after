@@ -29,10 +29,13 @@
   --color-ink-muted: oklch(52% 0.014 265);
   --color-ink-subtle: oklch(64% 0.012 265);
 
-  --color-accent: oklch(55% 0.17 275);
-  --color-accent-hover: oklch(49% 0.17 275);
+  /* 52%, not 55%: accent text on `accent-subtle` — the badge — measured 4.34:1 against a 4.5
+     requirement in a real browser. Three points of lightness buys the margin, and every other
+     use of the pair (white on accent, links on canvas) only improves. */
+  --color-accent: oklch(52% 0.17 275);
+  --color-accent-hover: oklch(46% 0.17 275);
   --color-accent-ink: oklch(99% 0 0);
-  --color-accent-subtle: oklch(95% 0.03 275);
+  --color-accent-subtle: oklch(96% 0.03 275);
 
   --color-danger: oklch(55% 0.2 25);
   --color-danger-subtle: oklch(95% 0.03 25);

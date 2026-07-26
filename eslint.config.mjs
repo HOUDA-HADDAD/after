@@ -116,9 +116,25 @@ export default tseslint.config(
 
   // Tests may reach for the sharp tools.
   {
-    files: ['**/*.{test,spec}.{ts,tsx,js}', '**/tests/**'],
+    files: ['**/*.{test,spec}.{ts,tsx,js}', '**/tests/**', 'e2e/**'],
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',
+      'no-console': 'off',
+    },
+  },
+
+  /*
+   * Harness scripts stand outside the application's layering.
+   *
+   * `no-prisma-outside-repositories` exists to stop a *service* reaching past its repository. A
+   * script whose entire job is to stand up a database, migrate it and seed it has no repository
+   * to reach past — it is the thing that builds the world the repositories later run in. Scoped
+   * to `scripts/`, so the rule keeps its teeth everywhere it was written for.
+   */
+  {
+    files: ['apps/*/scripts/**', 'e2e/**'],
+    rules: {
+      'aftergame/no-prisma-outside-repositories': 'off',
       'no-console': 'off',
     },
   },

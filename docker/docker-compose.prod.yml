@@ -1,0 +1,103 @@
+# Self-hosting, the whole stack.
+#
+#   cp .env.production.example .env.production   # then fill it in
+#   docker compose -f docker/docker-compose.prod.yml --env-file .env.production up -d
+#
+# Four containers: Caddy terminates TLS, the app serves the API and the client, PostgreSQL keeps
+# the durable zone, and a backup sidecar takes a nightly dump. Path B in docs/09-deployment.md.
+
+name: aftergame
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+      - '443:443/udp'
+    environment:
+      AFTERGAME_DOMAIN: ${AFTERGAME_DOMAIN:?set AFTERGAME_DOMAIN in .env.production}
+    volumes:
+      - ../Caddyfile:/etc/caddy/Caddyfile:ro
+      # Certificates live here. Losing this volume means re-issuing them, which Let's Encrypt
+      # rate-limits — so it is a named volume rather than a bind mount that is easy to delete.
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      api:
+        condition: service_healthy
+
+  api:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: aftergame:latest
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOST: 0.0.0.0
+      APP_ORIGIN: https://${AFTERGAME_DOMAIN:?set AFTERGAME_DOMAIN in .env.production}
+      DATABASE_URL: postgresql://aftergame:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/aftergame
+      SESSION_SECRET: ${SESSION_SECRET:?set SESSION_SECRET — 32+ random bytes, not the example}
+      SESSION_TTL_DAYS: ${SESSION_TTL_DAYS:-30}
+      SESSION_GRACE_HOURS: ${SESSION_GRACE_HOURS:-24}
+      SESSION_IDLE_TTL_MINUTES: ${SESSION_IDLE_TTL_MINUTES:-180}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    # No ports published: Caddy is the only way in.
+    expose:
+      - '3000'
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: aftergame
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: aftergame
+      # Must match the test and development databases, or index ordering differs between them.
+      POSTGRES_INITDB_ARGS: '--locale=C --encoding=UTF8'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U aftergame -d aftergame']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  # A nightly `pg_dump` with 7-day rotation. The durable zone is users, groups, memberships and
+  # punishments — kilobytes for a typical deployment, because game content is transient by design
+  # (D11). Restoring is documented in docs/09-deployment.md and must be tested once, not assumed.
+  backup:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      BACKUP_KEEP_DAYS: ${BACKUP_KEEP_DAYS:-7}
+    volumes:
+      - ./backup.sh:/usr/local/bin/backup.sh:ro
+      - aftergame-backups:/backups
+    entrypoint: ['/bin/sh', '/usr/local/bin/backup.sh']
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres-data:
+    name: aftergame-postgres-data
+  aftergame-backups:
+    name: aftergame-backups
+  caddy-data:
+    name: aftergame-caddy-data
+  caddy-config:
+    name: aftergame-caddy-config

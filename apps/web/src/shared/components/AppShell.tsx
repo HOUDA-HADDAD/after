@@ -100,7 +100,14 @@ export function AppShell({ children }: { children: ReactNode }) {
             </nav>
           )}
 
-          <main id="main" className="min-w-0 flex-1 overflow-y-auto">
+          {/*
+            `tabIndex={0}` on a scroll container is not decoration. Some screens — a finished
+            game, once the composers and guess buttons are gone — are long, scrollable and contain
+            nothing focusable at all, which leaves a keyboard user unable to scroll them. Making
+            the region itself focusable is the remedy the rule asks for, at the cost of one tab
+            stop that the skip link already jumps to anyway.
+          */}
+          <main id="main" tabIndex={0} className="min-w-0 flex-1 overflow-y-auto">
             {children}
           </main>
         </div>

@@ -1,0 +1,21 @@
+# Everything the image does not need, kept out of the build context so a build does not upload
+# hundreds of megabytes of node_modules only to discard them.
+
+node_modules
+**/node_modules
+**/dist
+**/.turbo
+**/coverage
+e2e/.playwright
+playwright-report
+
+.git
+.github
+.env
+.env.*
+!.env.example
+
+*.log
+*.md
+!README.md
+docs

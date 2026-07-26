@@ -1,0 +1,24 @@
+# TLS, HTTP/2 and WebSocket proxying, in one file.
+#
+# Caddy obtains and renews a Let's Encrypt certificate on its own, which is the entire reason it
+# is here: the alternative is a certbot cron job and a renewal that fails silently in eleven
+# months. Replace the domain and the email, and there is nothing else to configure.
+#
+# WebSocket upgrades need no special handling — `reverse_proxy` forwards them.
+
+{$AFTERGAME_DOMAIN:aftergame.example} {
+	encode zstd gzip
+
+	# The app sets its own security headers (docs/07-security.md); Caddy adds only what belongs to
+	# the edge. Duplicating HSTS here would mean two places to get it wrong.
+	header {
+		-Server
+	}
+
+	reverse_proxy api:3000 {
+		# Without this the app sees Caddy's address as the client, and rate limiting becomes
+		# per-proxy rather than per-visitor.
+		header_up X-Forwarded-For {remote_host}
+		header_up X-Forwarded-Proto {scheme}
+	}
+}

@@ -237,25 +237,67 @@ within fifty runs against the old code.
 
 ## End-to-end — Playwright
 
-Three browser contexts in one test act as three players, driving real WebSocket traffic.
+`e2e/` drives a real browser against the production topology: the **built** API serving the
+**built** client from one origin, against a real PostgreSQL with the real migrations and seed.
+Two projects — Desktop Chrome and a Pixel 5 — because "works on mobile" is the claim most easily
+made and least often true.
 
-| Spec | Scenario                                                                                                             |
-| ---- | -------------------------------------------------------------------------------------------------------------------- |
-| E1   | Register → create group → invite → join → full 3-player Questions game → timeline                                    |
-| E2   | Full Anecdotes game with comments and author guessing                                                                |
-| E3   | Punishment: host punishes a player, who then receives two answer cards                                               |
-| E4   | Reveal outcomes — unanimous YES reveals for all; one NO (and one abstention) hides for all, including the YES voters |
-| E5   | Disconnect mid-writing, reconnect, draft preserved, game resumes                                                     |
-| E6   | Force-advance with an absent player; timeline shows "no answer"                                                      |
-| E7   | Blocked player cannot join; forgiveness restores access                                                              |
-| E8   | Second-game-while-live is blocked with a link to the live game                                                       |
-| E9   | Empty submit is refused with a visible warning                                                                       |
-| E10  | Mobile viewport: complete game at 390×844                                                                            |
-| E11  | Dark mode + `prefers-reduced-motion` render correctly                                                                |
-| E12  | Purge: after the grace window a finished game returns the friendly gone-screen                                       |
-| E13  | Keyboard-only path through a full game                                                                               |
-| E14  | axe accessibility scan on every major route                                                                          |
-| E15  | Firefox: dictation button absent, everything else works                                                              |
+Two differences from production, both deliberate and both stated in the harness itself:
+`NODE_ENV=development` with `SERVE_STATIC=true`, because production insists on an https origin and
+TLS is terminated by the proxy in front; and rate limiting off, because three players registering
+and playing inside a minute is not a pattern the limits exist to allow. What that leaves uncovered
+— HSTS, `Secure`, the `__Host-` prefix, and the strict CSP — is covered at the integration layer
+instead, and the CSP is additionally executed in a browser by swapping the real production header
+in (`csp.spec.ts`).
+
+| Spec            | What only a browser can prove                                                                    |
+| --------------- | ------------------------------------------------------------------------------------------------ |
+| `smoke`         | The deployment shape itself: one origin, deep links, the API beside the client                   |
+| `full-game`     | Three contexts at once; a socket carrying one player's submit into another's tab, with no reload |
+| `resilience`    | A network genuinely taken away and given back; a closed tab; a host forcing the game on          |
+| `punishment`    | The block explained rather than enforced by a missing button, and forgiveness restoring access   |
+| `accessibility` | Contrast, `inert` and focus under a real compositor — **no rules disabled**                      |
+| `csp`           | That the app actually runs under the policy production ships                                     |
+
+### What it found
+
+Three real defects, each invisible to every earlier layer:
+
+- Links in prose were distinguished from surrounding text by colour alone (1.05:1 against a 3:1
+  requirement) — they now carry a permanent underline.
+- The accent badge measured 4.34:1 against a 4.5 requirement. The accent token moved three points
+  darker, which improves every other use of it too.
+- A finished game is long, scrollable, and — once the composers and guess buttons are gone —
+  contains nothing focusable, so a keyboard user could not scroll it. The scroll container is now
+  focusable.
+
+Plus the two CSP defects described in [07](07-security.md), which would have shipped as "the
+progress bar does not move" and "dark mode flashes white".
+
+One harness note worth keeping: axe samples whatever colour an element has at the instant it runs,
+so catching one mid-transition reports a blend of two states that nobody ever sees. Animations are
+frozen by an init script, before the first paint, rather than by a stylesheet added afterwards —
+which only ends a transition that has already started.
+
+## Load and indexes
+
+`pnpm perf` builds a game at the maximum the design allows — 30 players, a third of them on the
+heaviest punishment load — then fires `autocannon` at the timeline read and runs
+`EXPLAIN (ANALYZE, BUFFERS)` over every statement that read issued.
+
+Measured on the development machine, against a 30-text, 48-answer, 160-comment game:
+
+| Metric                  | Result | Budget   |
+| ----------------------- | ------ | -------- |
+| Requests/sec            | 401    | —        |
+| Latency p50             | 48 ms  | —        |
+| Latency p97.5           | 60 ms  | < 150 ms |
+| Non-2xx                 | 0      | 0        |
+| Seq scans over 200 rows | none   | none     |
+
+The index review is automated rather than eyeballed: the script explains each statement and
+reports any sequential scan on a table with more than 200 rows in it. A sequential scan over
+thirty rows is the planner being right, not an index being missing.
 
 ## Non-functional checks
 
@@ -278,8 +320,8 @@ push / PR
   ├── integration (Postgres 16 service)
   ├── full game (three players, real API + Postgres)
   ├── anonymity regression        ← separate job, release blocker
+  ├── e2e (Playwright, built artefacts, desktop + mobile)
   ├── build (api + web)
-  ├── e2e (Playwright, built artifacts)
   └── security: pnpm audit · licence allowlist · gitleaks
 ```
 

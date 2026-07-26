@@ -196,6 +196,50 @@ Restating these here because they are security controls, not UI preferences:
 9. A dedicated regression suite asserts every one of the above on serialized output
    ([08](08-testing.md#anonymity-regression-suite)).
 
+## The Phase 9 pass — what it found
+
+Every control above was written in Phase 0 and asserted piecemeal since. Phase 9 ran it as a pass
+and turned up four things worth recording.
+
+**Production headers had never been executed.** HSTS, the strict CSP and the `__Host-` cookie are
+all `NODE_ENV=production` behaviour, and every suite ran in test mode. They now have their own
+integration tests (`security-posture.test.ts`), which is also the only layer that can see them —
+the browser suite runs over plain http, because TLS is terminated by the proxy in front rather
+than by this process.
+
+**The CSP would have broken the app.** With `style-src 'self'` and nothing else, Chrome drops
+React's inline `style` attributes (CSP 3 governs them with `style-src-attr`, which falls back to
+`style-src`), so the progress bar never fills — and it blocks the inline theme bootstrap in
+`index.html`, so a dark-mode user gets a white flash on every load. Neither is visible in
+development, where the policy is looser. Both are now covered by a browser test that swaps the
+real production policy in and fails on any violation the browser raises.
+
+The policy that resulted is deliberately asymmetric:
+
+- `script-src 'self' 'sha256-…'` — the hash is computed at boot from the bytes of the inline
+  bootstrap actually being served, so it cannot drift from the file. No `'unsafe-inline'`.
+- `style-src 'self' 'unsafe-inline'` — a concession. `sonner`, the toast library, injects its
+  stylesheet as a `<style>` element at runtime and offers no nonce or hash to hand it. The
+  exposure is styling rather than execution, and script — where XSS lives — stays closed.
+
+**Two dependency advisories were live.** `@fastify/static` 8.3.0 carried four, up to HIGH: path
+traversal and route-guard bypass via encoded separators. That is the plugin serving the client in
+production, so it was upgraded to 10.1.2. `react-router` 7.18.1 carried a CSRF advisory scoped to
+RSC mode, which this app does not use; it was upgraded to 8.x anyway rather than reasoned around,
+and the whole suite passes on it.
+
+One advisory is deliberately not fixed, and is recorded in `package.json` under
+`pnpm.auditConfig.ignoreGhsas` where a reviewer will see it:
+
+| Advisory              | Package           | Why it stays                                                                                                                                               |
+| --------------------- | ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GHSA-mh99-v99m-4gvg` | `brace-expansion` | Dev-only — zero production paths. The fix is 5.0.8, and forcing it breaks ESLint, whose `minimatch` needs the 1.x/2.x API. Revisit when `minimatch` moves. |
+
+**Licences.** Every production dependency carries a permissive licence. Four packages are MPL-2.0
+— `axe-core`, `@axe-core/playwright`, `lightningcss` and its native binary — and all four are
+build and test tooling that never reaches the image. The CI check runs with `--production` for
+exactly that reason.
+
 ## Known limitations, stated honestly
 
 - **Writing style is identifying.** No software can prevent friends recognising each other's
@@ -211,3 +255,10 @@ Restating these here because they are security controls, not UI preferences:
   would prevent this and would also make the server unable to distribute texts — out of scope.
 - **No email verification in v1.** Anyone can register with any address. Acceptable because
   groups are invite-only and there is no public surface; revisit if password reset ships.
+- **`style-src` permits inline styles.** Forced by a dependency that injects CSS at runtime, as
+  described above. Removing it means replacing `sonner` or patching it to accept a nonce.
+- **The container image has not been built here.** The Dockerfile, Compose file and Caddyfile were
+  written and statically checked — every `COPY` source verified to exist, the shell script parsed,
+  the YAML free of tabs — but Docker is not available on the machine they were written on.
+  `pnpm docker:check` builds the image and proves it serves; it is the first thing to run on a
+  machine that has Docker, and until it has run, the image is unproven.
