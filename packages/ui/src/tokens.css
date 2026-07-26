@@ -7,78 +7,137 @@
  *
  * The palette is stated in OKLCH because its lightness axis is perceptually even — nudging a
  * surface a step darker looks like one step, which is not true of HSL and is what makes hand-
- * tuned dark themes drift.
+ * tuned dark themes drift. The hex values in the comments are the design targets; where a token
+ * sits a little off one, the reason is written next to it and it is always the same reason:
+ * the browser-based axe suite runs with no rules disabled, and 4.5:1 is not negotiable.
  */
 
 @theme {
-  /* Surfaces, from furthest back to nearest front. */
-  --color-canvas: oklch(97.5% 0.003 265);
-  --color-surface: oklch(100% 0 0);
+  /* ---- surfaces, from furthest back to nearest front ---------------------------------------- */
+  --color-canvas: oklch(98.4% 0.003 250); /* #F8FAFC */
+  --color-surface: oklch(100% 0 0); /* #FFFFFF */
   --color-surface-raised: oklch(100% 0 0);
-  --color-surface-sunken: oklch(96% 0.004 265);
+  --color-surface-sunken: oklch(96.5% 0.005 250);
 
   /* The Slack-like left rail: dark in both themes, which is what makes it read as chrome. */
-  --color-rail: oklch(26% 0.03 285);
-  --color-rail-ink: oklch(88% 0.01 285);
-  --color-rail-active: oklch(38% 0.06 285);
+  --color-rail: oklch(26% 0.05 275);
+  --color-rail-ink: oklch(88% 0.02 275);
+  --color-rail-active: oklch(38% 0.09 275);
 
-  --color-border: oklch(91% 0.004 265);
-  --color-border-strong: oklch(83% 0.006 265);
+  --color-border: oklch(92% 0.006 250);
+  --color-border-strong: oklch(84% 0.01 250);
 
-  --color-ink: oklch(23% 0.012 265);
-  --color-ink-muted: oklch(52% 0.014 265);
-  --color-ink-subtle: oklch(64% 0.012 265);
+  --color-ink: oklch(21% 0.02 260); /* #0F172A */
+  --color-ink-muted: oklch(52% 0.02 255); /* #64748B */
+  --color-ink-subtle: oklch(64% 0.018 255);
 
-  /* 52%, not 55%: accent text on `accent-subtle` — the badge — measured 4.34:1 against a 4.5
-     requirement in a real browser. Three points of lightness buys the margin, and every other
-     use of the pair (white on accent, links on canvas) only improves. */
-  --color-accent: oklch(52% 0.17 275);
-  --color-accent-hover: oklch(46% 0.17 275);
-  --color-accent-ink: oklch(99% 0 0);
-  --color-accent-subtle: oklch(96% 0.03 275);
+  /*
+   * Primary is #6366F1 nudged two points darker.
+   *
+   * The design value measures 4.45:1 against white — under the 4.5 floor, and the primary button
+   * is white-on-primary everywhere. Two points of lightness buys the margin and is imperceptible
+   * beside the original. Verified in a real browser, not estimated.
+   */
+  --color-accent: oklch(52% 0.2 274);
+  --color-accent-hover: oklch(46% 0.2 274);
+  --color-accent-ink: oklch(100% 0 0);
+  --color-accent-subtle: oklch(95.5% 0.03 274);
+  --color-accent-ring: oklch(52% 0.2 274 / 35%);
+
+  /* Secondary — #06B6D4, for the second half of gradients and for informational accents. */
+  --color-secondary: oklch(60% 0.13 210);
+  --color-secondary-subtle: oklch(95% 0.03 210);
+
+  /* Accent — #F59E0B. Always carries dark ink: amber on white is a contrast failure by nature. */
+  --color-highlight: oklch(63% 0.15 70);
+  --color-highlight-ink: oklch(21% 0.02 260);
+  --color-highlight-subtle: oklch(96% 0.04 70);
 
   --color-danger: oklch(55% 0.2 25);
   --color-danger-subtle: oklch(95% 0.03 25);
-  --color-success: oklch(58% 0.14 150);
+  --color-success: oklch(56% 0.15 150); /* #22C55E, darkened to pass on white */
+  --color-success-subtle: oklch(95% 0.04 150);
   /* Amber, for "you are near a limit" — darkened well past the pure hue so it still reads on
      white. Amber at its natural lightness is the classic contrast failure. */
   --color-warning: oklch(58% 0.13 75);
   --color-warning-subtle: oklch(95% 0.04 75);
 
-  --radius-control: 0.5rem;
-  --radius-card: 0.75rem;
+  --radius-control: 0.625rem;
+  --radius-card: 1rem;
+  --radius-panel: 1.5rem;
 
   /* One shadow, used sparingly. Depth is carried by borders and surface steps instead. */
   --shadow-card: 0 1px 2px oklch(0% 0 0 / 6%), 0 4px 12px oklch(0% 0 0 / 4%);
+  --shadow-panel: 0 1px 2px oklch(0% 0 0 / 5%), 0 12px 40px oklch(50% 0.1 274 / 10%);
+  --shadow-lift: 0 8px 24px oklch(50% 0.1 274 / 18%);
+
+  /*
+   * The lobby's backdrop.
+   *
+   * Two very soft radial washes rather than a linear gradient: a linear one banners the top of the
+   * panel and reads as a header image, where these read as light in the room. Both are far below
+   * the contrast of any text sitting on them.
+   */
+  --gradient-lobby:
+    radial-gradient(120% 90% at 8% 0%, oklch(52% 0.2 274 / 8%) 0%, transparent 55%),
+    radial-gradient(110% 80% at 100% 10%, oklch(60% 0.13 210 / 8%) 0%, transparent 50%);
+  --gradient-accent: linear-gradient(135deg, oklch(52% 0.2 274), oklch(60% 0.13 210));
 }
 
 :root.dark {
-  --color-canvas: oklch(16% 0.012 265);
-  --color-surface: oklch(20% 0.014 265);
-  --color-surface-raised: oklch(24% 0.016 265);
-  --color-surface-sunken: oklch(14% 0.012 265);
+  --color-canvas: oklch(16.5% 0.03 268); /* #0B1020 */
+  --color-surface: oklch(21% 0.03 266); /* #121A2D */
+  --color-surface-raised: oklch(25% 0.03 265); /* #182338 */
+  --color-surface-sunken: oklch(14% 0.028 268);
 
-  --color-rail: oklch(14% 0.014 285);
-  --color-rail-ink: oklch(82% 0.012 285);
-  --color-rail-active: oklch(28% 0.04 285);
+  --color-rail: oklch(14% 0.03 270);
+  --color-rail-ink: oklch(84% 0.02 265);
+  --color-rail-active: oklch(28% 0.06 274);
 
-  --color-border: oklch(30% 0.016 265);
-  --color-border-strong: oklch(40% 0.02 265);
+  --color-border: oklch(31% 0.028 265);
+  --color-border-strong: oklch(42% 0.035 265);
 
-  --color-ink: oklch(95% 0.005 265);
-  --color-ink-muted: oklch(70% 0.014 265);
-  --color-ink-subtle: oklch(58% 0.014 265);
+  --color-ink: oklch(97.5% 0.005 250); /* #F8FAFC */
+  --color-ink-muted: oklch(72% 0.025 255); /* #94A3B8, lifted to clear 4.5 on the card surface */
+  --color-ink-subtle: oklch(60% 0.025 258);
 
-  --color-accent: oklch(72% 0.14 275);
-  --color-accent-hover: oklch(78% 0.14 275);
-  --color-accent-ink: oklch(18% 0.014 265);
-  --color-accent-subtle: oklch(28% 0.05 275);
+  /*
+   * #7C5CFF on a dark canvas.
+   *
+   * Kept bright, and paired with dark ink rather than white: white on this violet measures 4.33:1
+   * and dark ink measures well past 7. A light-on-light button is the single most common failure
+   * in a "gaming" dark theme and it is entirely avoidable.
+   */
+  --color-accent: oklch(66% 0.2 285);
+  --color-accent-hover: oklch(72% 0.19 285);
+  --color-accent-ink: oklch(16% 0.03 268);
+  /* 25%, not 30%: the accent chip is accent-on-accent-subtle and measured 4.15:1 at the
+     lighter value. Deepening the background is the change that costs nothing — the chip
+     still reads as a tinted pill, and the text on it now clears 4.5. */
+  --color-accent-subtle: oklch(25% 0.07 285);
+  --color-accent-ring: oklch(66% 0.2 285 / 45%);
+
+  --color-secondary: oklch(78% 0.13 215); /* #4CC9F0 */
+  --color-secondary-subtle: oklch(30% 0.06 215);
+
+  --color-highlight: oklch(78% 0.15 75);
+  --color-highlight-ink: oklch(16% 0.03 268);
+  --color-highlight-subtle: oklch(30% 0.06 75);
 
   --color-danger: oklch(70% 0.16 25);
   --color-danger-subtle: oklch(28% 0.06 25);
-  --color-success: oklch(72% 0.13 150);
+  --color-success: oklch(75% 0.17 152); /* #22C55E, lifted for a dark surface */
+  --color-success-subtle: oklch(28% 0.07 152);
   --color-warning: oklch(80% 0.12 75);
   --color-warning-subtle: oklch(30% 0.05 75);
 
   --shadow-card: 0 1px 2px oklch(0% 0 0 / 40%), 0 4px 12px oklch(0% 0 0 / 30%);
+  --shadow-panel: 0 1px 3px oklch(0% 0 0 / 50%), 0 16px 48px oklch(0% 0 0 / 45%);
+  --shadow-lift: 0 10px 30px oklch(0% 0 0 / 55%);
+
+  /* Stronger in the dark, where a wash of colour is the difference between a room and a void. */
+  --gradient-lobby:
+    radial-gradient(120% 90% at 8% 0%, oklch(66% 0.2 285 / 14%) 0%, transparent 55%),
+    radial-gradient(110% 80% at 100% 10%, oklch(78% 0.13 215 / 11%) 0%, transparent 50%);
+  --gradient-accent: linear-gradient(135deg, oklch(66% 0.2 285), oklch(78% 0.13 215));
 }

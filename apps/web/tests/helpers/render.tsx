@@ -4,6 +4,7 @@ import { MemoryRouter, Route, Routes } from 'react-router';
 import axe from 'axe-core';
 import type { ReactNode } from 'react';
 import { SocketProvider } from '../../src/shared/realtime/SocketProvider.js';
+import { LocaleProvider } from '../../src/shared/i18n/LocaleProvider.js';
 
 /** A client that never retries and never caches, so tests are deterministic. */
 const testQueryClient = (): QueryClient =>
@@ -27,13 +28,15 @@ export function renderWithProviders(
 ): RenderResult {
   return render(
     <QueryClientProvider client={testQueryClient()}>
-      <MemoryRouter initialEntries={[route]}>
-        <SocketProvider>
-          <Routes>
-            <Route path={path} element={ui} />
-          </Routes>
-        </SocketProvider>
-      </MemoryRouter>
+      <LocaleProvider>
+        <MemoryRouter initialEntries={[route]}>
+          <SocketProvider>
+            <Routes>
+              <Route path={path} element={ui} />
+            </Routes>
+          </SocketProvider>
+        </MemoryRouter>
+      </LocaleProvider>
     </QueryClientProvider>,
   );
 }

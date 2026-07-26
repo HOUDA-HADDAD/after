@@ -8,6 +8,7 @@ import { useSocket } from '../realtime/SocketProvider.js';
 import { GroupRail } from './GroupRail.js';
 import { GroupSidebar } from './GroupSidebar.js';
 import { DESKTOP_QUERY, useMediaQuery } from '../hooks/useMediaQuery.js';
+import { LanguageMenu } from './LanguageMenu.js';
 
 /**
  * The application shell.
@@ -163,6 +164,8 @@ function TopBar({
             {state.user.username}
           </span>
         )}
+
+        <LanguageMenu />
 
         <Button
           variant="ghost"

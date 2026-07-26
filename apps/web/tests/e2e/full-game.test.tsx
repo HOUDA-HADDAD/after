@@ -11,6 +11,7 @@ import { buildApp } from '../../../api/src/app.js';
 import { createQueryClient } from '../../src/shared/api/queries.js';
 import { SessionProvider } from '../../src/features/auth/SessionProvider.js';
 import { SocketProvider } from '../../src/shared/realtime/SocketProvider.js';
+import { LocaleProvider } from '../../src/shared/i18n/LocaleProvider.js';
 import GroupDetailPage from '../../src/features/groups/GroupDetailPage.js';
 import GamePage from '../../src/features/game/GamePage.js';
 import { setViewportWidth, VIEWPORTS } from '../helpers/viewport.js';
@@ -116,11 +117,13 @@ async function playAs(player: Player, route: string, turn: () => Promise<void>):
 
   render(
     <QueryClientProvider client={createQueryClient()}>
-      <MemoryRouter initialEntries={[route]}>
-        <SessionProvider>
-          <SocketProvider>{routes}</SocketProvider>
-        </SessionProvider>
-      </MemoryRouter>
+      <LocaleProvider>
+        <MemoryRouter initialEntries={[route]}>
+          <SessionProvider>
+            <SocketProvider>{routes}</SocketProvider>
+          </SessionProvider>
+        </MemoryRouter>
+      </LocaleProvider>
     </QueryClientProvider>,
   );
 
@@ -225,7 +228,7 @@ describe('three players, one Anecdotes game', () => {
       // Scoped to the roster, and asserted on the row rather than on loose text: the punishment
       // history below says "ahmed" and a level too, and matching that would prove nothing about
       // what the member row shows.
-      const roster = () => within(screen.getByRole('region', { name: 'Members' }));
+      const roster = () => within(screen.getByRole('region', { name: 'Players' }));
       const ahmedRow = (): HTMLElement => roster().getByText('ahmed').closest('li')!;
 
       const punishButton = (): HTMLElement =>
@@ -247,7 +250,7 @@ describe('three players, one Anecdotes game', () => {
       }
 
       // Level 2 in a three-player game means all three texts (D3 clamps it no further here).
-      expect(ahmedRow()).toHaveTextContent('answers 3');
+      expect(ahmedRow()).toHaveTextContent('Answers 3');
     });
   });
 
@@ -255,9 +258,9 @@ describe('three players, one Anecdotes game', () => {
     await playAs(sarah, `/groups/${groupId}`, async () => {
       const ui = user();
 
-      await ui.click(await screen.findByRole('button', { name: 'New game' }));
+      // The themes are simply on screen now: choosing one arms the button that starts the game.
       await ui.click(await screen.findByRole('radio', { name: /Anecdotes/ }));
-      await ui.click(screen.getByRole('button', { name: /open the lobby/i }));
+      await ui.click(screen.getByRole('button', { name: /start game/i }));
 
       // The lobby is a route of its own, so arriving there proves the navigation as well.
       await gameOnScreen();

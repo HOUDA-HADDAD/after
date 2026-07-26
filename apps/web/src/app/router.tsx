@@ -14,6 +14,7 @@ import { RouteErrorBoundary } from '../shared/components/RouteErrorBoundary.js';
 import { SocketProvider } from '../shared/realtime/SocketProvider.js';
 import { createQueryClient } from '../shared/api/queries.js';
 import { useTheme } from '../shared/hooks/useTheme.js';
+import { LocaleProvider } from '../shared/i18n/LocaleProvider.js';
 
 /** Everything behind the login wall shares the shell, the socket and the error boundary. */
 function Protected({ children }: { children: ReactNode }) {
@@ -41,45 +42,47 @@ export function AppRouter() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <SessionProvider>
-          <ThemedToaster />
+      <LocaleProvider>
+        <BrowserRouter>
+          <SessionProvider>
+            <ThemedToaster />
 
-          <Routes>
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/register" element={<RegisterPage />} />
+            <Routes>
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/register" element={<RegisterPage />} />
 
-            <Route
-              path="/"
-              element={
-                <Protected>
-                  <GroupsPage />
-                </Protected>
-              }
-            />
+              <Route
+                path="/"
+                element={
+                  <Protected>
+                    <GroupsPage />
+                  </Protected>
+                }
+              />
 
-            <Route
-              path="/groups/:groupId"
-              element={
-                <Protected>
-                  <GroupDetailPage />
-                </Protected>
-              }
-            />
+              <Route
+                path="/groups/:groupId"
+                element={
+                  <Protected>
+                    <GroupDetailPage />
+                  </Protected>
+                }
+              />
 
-            <Route
-              path="/groups/:groupId/games/:sessionId"
-              element={
-                <Protected>
-                  <GamePage />
-                </Protected>
-              }
-            />
+              <Route
+                path="/groups/:groupId/games/:sessionId"
+                element={
+                  <Protected>
+                    <GamePage />
+                  </Protected>
+                }
+              />
 
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </SessionProvider>
-      </BrowserRouter>
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </SessionProvider>
+        </BrowserRouter>
+      </LocaleProvider>
     </QueryClientProvider>
   );
 }

@@ -79,7 +79,7 @@ test.describe('a blocked player', () => {
       // The host forgives from the group screen, through the UI. Scoped to the roster inside the
       // main panel: the sidebar lists the same people, and so does the punishment history below.
       await sarah.page.goto(`/groups/${groupId}`);
-      const roster = sarah.page.locator('main').getByRole('region', { name: 'Members' });
+      const roster = sarah.page.locator('main').getByRole('region', { name: 'Players' });
 
       await expect(roster.getByText(ahmed.name)).toBeVisible();
       await roster.getByRole('button', { name: 'Forgive' }).click();

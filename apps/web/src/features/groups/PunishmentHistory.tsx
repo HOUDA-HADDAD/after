@@ -1,3 +1,4 @@
+import { useT } from '../../shared/i18n/LocaleProvider.js';
 import type { PunishmentEventDto } from './groups.api.js';
 
 const describe = (event: PunishmentEventDto): string => {
@@ -20,12 +21,10 @@ const describe = (event: PunishmentEventDto): string => {
  * record of who applied it is accountability for hosts rather than a private file kept on people.
  */
 export function PunishmentHistory({ events }: { events: PunishmentEventDto[] }) {
+  const t = useT();
+
   if (events.length === 0) {
-    return (
-      <p className="mt-2 text-sm text-[var(--color-ink-muted)]">
-        Nothing yet. Punishments and forgiveness show up here for everyone to see.
-      </p>
-    );
+    return <p className="text-sm text-[var(--color-ink-muted)]">{t('history.empty')}</p>;
   }
 
   return (

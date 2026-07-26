@@ -30,6 +30,12 @@ test.describe('a theme a group writes for itself', () => {
       const groupId = await assembleGroup(sarah, [ahmed]);
 
       await sarah.page.goto(`/groups/${groupId}`);
+      // Room administration lives behind a disclosure now; the lobby is what the page is for.
+      // The summary is the control — clicking the <details> itself toggles nothing.
+      await sarah.page
+        .locator('summary')
+        .filter({ hasText: /room settings/i })
+        .click();
       await sarah.page.getByRole('button', { name: /write a theme/i }).click();
 
       await sarah.page.getByLabel('Name').fill('Unpopular opinions');
@@ -39,16 +45,17 @@ test.describe('a theme a group writes for itself', () => {
       await sarah.page.getByLabel('Answer prompt').fill('Defend it or demolish it');
       await sarah.page.getByRole('button', { name: /add it to the picker/i }).click();
 
-      await expect(sarah.page.getByText('Unpopular opinions')).toBeVisible();
+      // Listed where it was written…
+      await expect(sarah.page.locator('details').getByText('Unpopular opinions')).toBeVisible();
 
-      // Into the picker, alongside the three defaults rather than instead of them.
-      await sarah.page.getByRole('button', { name: 'New game' }).click();
+      // …and in the picker, alongside the three defaults rather than instead of them. It arrives
+      // there without a reload because writing one invalidates the picker's query too.
       const option = sarah.page.getByRole('radio', { name: /Unpopular opinions/ });
       await expect(option).toBeVisible();
       await expect(sarah.page.getByRole('radio', { name: /Anecdotes/ })).toBeVisible();
 
       await option.click();
-      await sarah.page.getByRole('button', { name: /open the lobby/i }).click();
+      await sarah.page.getByRole('button', { name: /start game/i }).click();
 
       // And onto the banner, which stays pinned for the whole game.
       await expect(sarah.page.getByRole('heading', { name: 'Unpopular opinions' })).toBeVisible();
@@ -88,7 +95,6 @@ test.describe('a theme a group writes for itself', () => {
       });
 
       await lina.page.goto(`/groups/${hers}`);
-      await lina.page.getByRole('button', { name: 'New game' }).click();
 
       await expect(lina.page.getByRole('radio', { name: /Anecdotes/ })).toBeVisible();
       // A group's themes are its own — the route is scoped so this cannot be got wrong (D19).

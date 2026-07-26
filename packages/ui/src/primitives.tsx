@@ -237,3 +237,77 @@ export function ErrorText({ children }: { children: ReactNode }) {
     </p>
   );
 }
+
+/* ---- Avatar ------------------------------------------------------------------------------- */
+
+/**
+ * A deterministic hue from a name.
+ *
+ * The same person is the same colour on every screen and in every session, without storing
+ * anything — which is what makes a roster scannable at a glance. A plain sum of code points is
+ * enough; this is decoration, not a hash with anything to defend.
+ */
+function hueFor(name: string): number {
+  let total = 0;
+
+  for (const character of name) total = (total + character.codePointAt(0)!) % 360;
+
+  return total;
+}
+
+export interface AvatarProps {
+  name: string;
+  size?: 'sm' | 'md' | 'lg';
+  /** Draws the ring and dot that say "here". Omit entirely rather than passing `false` loudly. */
+  online?: boolean;
+  className?: string;
+}
+
+const AVATAR_SIZES: Record<NonNullable<AvatarProps['size']>, string> = {
+  sm: 'h-8 w-8 text-xs',
+  md: 'h-10 w-10 text-sm',
+  lg: 'h-12 w-12 text-base',
+};
+
+/**
+ * Initials in a coloured disc.
+ *
+ * `aria-hidden`, always: the name it stands for is next to it in every use, and an avatar that
+ * announces "H" before the screen reader reads "HOUDA" is noise. The presence dot is decoration
+ * too — the caller words the status, because only the caller knows where in the sentence it
+ * belongs. Announcing "online" *before* the name is the kind of thing that technically passes an
+ * audit and still reads like a machine.
+ */
+export function Avatar({ name, size = 'md', online = false, className }: AvatarProps) {
+  const initials = name.trim().slice(0, 2).toUpperCase();
+  const hue = hueFor(name);
+
+  return (
+    <span className={cn('relative inline-flex shrink-0', className)}>
+      <span
+        aria-hidden="true"
+        style={{
+          backgroundColor: `oklch(88% 0.06 ${String(hue)})`,
+          color: `oklch(32% 0.12 ${String(hue)})`,
+        }}
+        className={cn(
+          'inline-flex items-center justify-center rounded-full font-semibold',
+          'ring-2 ring-[var(--color-surface)]',
+          AVATAR_SIZES[size],
+        )}
+      >
+        {initials}
+      </span>
+
+      {online && (
+        <span
+          aria-hidden="true"
+          className={cn(
+            'absolute right-0 bottom-0 h-2.5 w-2.5 rounded-full',
+            'bg-[var(--color-success)] ring-2 ring-[var(--color-surface-raised)]',
+          )}
+        />
+      )}
+    </span>
+  );
+}

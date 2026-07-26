@@ -10,6 +10,7 @@ import {
   type GroupThemeInput,
 } from '@aftergame/shared';
 import { queryKeys } from '../../shared/api/queries.js';
+import { usePlural, useT } from '../../shared/i18n/LocaleProvider.js';
 import { messageFor, fieldErrorsFor } from '../../shared/lib/error-copy.js';
 import {
   createCustomTheme,
@@ -40,6 +41,8 @@ const BLANK: GroupThemeInput = {
  * button out and leaving people to guess.
  */
 export function ThemeManager({ groupId, canManage }: { groupId: string; canManage: boolean }) {
+  const t = useT();
+  const plural = usePlural();
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState<GroupThemeDto | 'new' | null>(null);
 
@@ -87,12 +90,8 @@ export function ThemeManager({ groupId, canManage }: { groupId: string; canManag
       {editing === null && list.length === 0 && (
         <EmptyState
           icon={<Palette size={28} aria-hidden="true" />}
-          title="No themes of your own yet"
-          description={
-            canManage
-              ? 'Write one, and it joins the three defaults in this group’s picker. Nobody outside the group ever sees it.'
-              : 'A host can write themes for this group. They appear in the picker alongside the defaults.'
-          }
+          title={t('customThemes.empty')}
+          description={canManage ? t('customThemes.emptyHost') : t('customThemes.emptyMember')}
           action={
             canManage ? (
               <Button
@@ -101,7 +100,7 @@ export function ThemeManager({ groupId, canManage }: { groupId: string; canManag
                   setEditing('new');
                 }}
               >
-                Write a theme
+                {t('customThemes.write')}
               </Button>
             ) : undefined
           }
@@ -121,15 +120,18 @@ export function ThemeManager({ groupId, canManage }: { groupId: string; canManag
                     <p className="flex items-center gap-2 text-sm font-medium">
                       <span aria-hidden="true">{theme.icon}</span>
                       {theme.name}
-                      {theme.usedByGames > 0 && <Badge>in use</Badge>}
+                      {theme.usedByGames > 0 && <Badge>{t('customThemes.inUse')}</Badge>}
                     </p>
                     <p className="mt-0.5 text-sm text-[var(--color-ink-muted)]">
                       {theme.description}
                     </p>
                     {theme.usedByGames > 0 && (
                       <p className="mt-1 text-xs text-[var(--color-ink-muted)]">
-                        {theme.usedByGames} {theme.usedByGames === 1 ? 'game uses' : 'games use'}{' '}
-                        this theme, so it cannot change until they are deleted.
+                        {plural(
+                          'customThemes.inUseCountOne',
+                          'customThemes.inUseCount',
+                          theme.usedByGames,
+                        )}
                       </p>
                     )}
                   </div>
@@ -138,7 +140,7 @@ export function ThemeManager({ groupId, canManage }: { groupId: string; canManag
                     <div className="flex shrink-0 gap-1">
                       <Button
                         size="sm"
-                        aria-label={`Edit ${theme.name}`}
+                        aria-label={t('customThemes.edit', { name: theme.name })}
                         disabled={theme.usedByGames > 0}
                         onClick={() => {
                           setEditing(theme);
@@ -150,7 +152,7 @@ export function ThemeManager({ groupId, canManage }: { groupId: string; canManag
                       <Button
                         size="sm"
                         variant="danger"
-                        aria-label={`Delete ${theme.name}`}
+                        aria-label={t('customThemes.delete', { name: theme.name })}
                         disabled={theme.usedByGames > 0 || remove.isPending}
                         onClick={() => {
                           remove.mutate(theme.id);
@@ -173,7 +175,7 @@ export function ThemeManager({ groupId, canManage }: { groupId: string; canManag
                 setEditing('new');
               }}
             >
-              Write another
+              {t('customThemes.writeAnother')}
             </Button>
           )}
         </>
@@ -208,6 +210,8 @@ function ThemeForm({
         },
   );
 
+  const t = useT();
+
   const save = useMutation({
     mutationFn: (input: GroupThemeInput) =>
       existing === null
@@ -227,11 +231,12 @@ function ThemeForm({
   return (
     <Card className="p-5">
       <h3 className="font-medium">
-        {existing === null ? 'Write a theme' : `Edit ${existing.name}`}
+        {existing === null
+          ? t('customThemes.formTitle')
+          : t('customThemes.formTitleEdit', { name: existing.name })}
       </h3>
       <p className="mt-1 mb-4 text-sm text-[var(--color-ink-muted)]">
-        The prompts are what players read. The write prompt is pinned above the composer; the answer
-        prompt appears on every card they are dealt.
+        {t('customThemes.formIntro')}
       </p>
 
       <form
@@ -242,7 +247,7 @@ function ThemeForm({
       >
         <Field
           id="theme-name"
-          label="Name"
+          label={t('customThemes.name')}
           value={values.name}
           onChange={set('name')}
           maxLength={THEME_NAME_MAX_LENGTH}
@@ -252,60 +257,62 @@ function ThemeForm({
 
         <Field
           id="theme-icon"
-          label="Icon"
+          label={t('customThemes.icon')}
           value={values.icon}
           onChange={set('icon')}
           maxLength={8}
-          hint="One emoji. It sits in the picker and in the banner all game."
+          hint={t('customThemes.iconHint')}
           error={errors.icon}
           required
         />
 
         <Field
           id="theme-description"
-          label="Description"
+          label={t('customThemes.description')}
           value={values.description}
           onChange={set('description')}
           maxLength={THEME_TEXT_MAX_LENGTH}
-          hint="One line, shown in the picker."
+          hint={t('customThemes.descriptionHint')}
           error={errors.description}
           required
         />
 
         <Field
           id="theme-write-prompt"
-          label="Write prompt"
+          label={t('customThemes.writePrompt')}
           value={values.writePrompt}
           onChange={set('writePrompt')}
           maxLength={THEME_TEXT_MAX_LENGTH}
-          hint="What each player is asked to write."
+          hint={t('customThemes.writePromptHint')}
           error={errors.writePrompt}
           required
         />
 
         <Field
           id="theme-write-placeholder"
-          label="Placeholder"
+          label={t('customThemes.placeholder')}
           value={values.writePlaceholder}
           onChange={set('writePlaceholder')}
           maxLength={THEME_TEXT_MAX_LENGTH}
-          hint="Optional. Greyed-out example text in the composer."
+          hint={t('customThemes.placeholderHint')}
           error={errors.writePlaceholder}
         />
 
         <Field
           id="theme-answer-prompt"
-          label="Answer prompt"
+          label={t('customThemes.answerPrompt')}
           value={values.answerPrompt}
           onChange={set('answerPrompt')}
           maxLength={THEME_TEXT_MAX_LENGTH}
-          hint="What a player is asked when they are dealt someone else’s text."
+          hint={t('customThemes.answerPromptHint')}
           error={errors.answerPrompt}
           required
         />
 
         <fieldset className="mb-4">
-          <legend className="mb-1 block text-sm font-medium">During the discussion</legend>
+          <legend className="mb-1 block text-sm font-medium">
+            {t('customThemes.duringDiscussion')}
+          </legend>
 
           <label className="flex items-center gap-2 py-1 text-sm">
             <input
@@ -315,7 +322,7 @@ function ThemeForm({
                 setValues((current) => ({ ...current, supportsComments: event.target.checked }));
               }}
             />
-            Comments and reactions
+            {t('customThemes.comments')}
           </label>
 
           <label className="flex items-center gap-2 py-1 text-sm">
@@ -329,17 +336,17 @@ function ThemeForm({
                 }));
               }}
             />
-            Guessing who wrote what
+            {t('customThemes.guessing')}
           </label>
         </fieldset>
 
         <div className="flex flex-wrap gap-2">
           <Button type="submit" variant="primary" pending={save.isPending}>
-            {existing === null ? 'Add it to the picker' : 'Save changes'}
+            {existing === null ? t('customThemes.save') : t('customThemes.saveEdit')}
           </Button>
 
           <Button variant="ghost" onClick={onCancel}>
-            Cancel
+            {t('customThemes.cancel')}
           </Button>
         </div>
       </form>
