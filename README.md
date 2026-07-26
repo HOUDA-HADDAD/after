@@ -70,6 +70,23 @@ pnpm perf
 
 Full instructions, including the Docker-optional path, are in [CONTRIBUTING.md](CONTRIBUTING.md).
 
+## Putting it online, free
+
+Fifteen minutes, no card, a public HTTPS URL that works on any phone or laptop:
+
+1. Push the repo to GitHub.
+2. Create a free PostgreSQL at **neon.tech**, copy the direct connection string.
+3. Generate a secret: `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`
+4. On **render.com**, New → Web Service → your repo → runtime **Docker** → free instance, and set
+   `NODE_ENV=production`, `DATABASE_URL`, `SESSION_SECRET`, and `APP_ORIGIN` to the URL Render
+   gives you.
+5. Open the URL and register.
+
+Migrations and the default themes apply themselves on boot. The free instance sleeps after 15
+minutes idle and takes about 50 seconds to wake, which is worth knowing before a party rather
+than during one — [09](docs/09-deployment.md) has the full walkthrough, the always-on
+self-hosted alternative, and what each trade-off actually costs.
+
 ## Cost
 
 Zero. PostgreSQL, Node, and every library chosen is open source and self-hostable. There

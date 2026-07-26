@@ -1,6 +1,7 @@
 import { resolve } from 'node:path';
 import { loadEnv, loadEnvFileIfPresent, EnvValidationError } from '@aftergame/config';
 import { buildApp } from './app.js';
+import { seedThemes } from './modules/themes/system-themes.js';
 
 /** The repository root holds the single `.env`, two levels up from apps/api. */
 const REPO_ROOT_ENV = resolve(process.cwd(), '../../.env');
@@ -37,6 +38,22 @@ async function main(): Promise<void> {
     process.once(signal, () => {
       void shutdown(signal);
     });
+  }
+
+  /**
+   * Seed the default themes on every boot.
+   *
+   * Idempotent by slug, so it is safe to repeat, and it is here rather than in a release command
+   * because the failure it prevents is silent: a deployment that migrated but never seeded starts
+   * cleanly, answers `/readyz` with a 200, and offers an empty theme picker to anyone who tries
+   * to start a game. Every health check calls that healthy.
+   */
+  try {
+    const seeded = await seedThemes(app.prisma);
+    app.log.info({ themes: seeded }, 'system themes ready');
+  } catch (error) {
+    app.log.error({ err: error }, 'could not seed the default themes');
+    process.exit(1);
   }
 
   try {

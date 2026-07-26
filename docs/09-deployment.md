@@ -62,29 +62,89 @@ Migrations run as a separate, more privileged database role than the application
 
 ## Path A — Managed free hosting (fastest to a public URL)
 
-| Component             | Service                            | Notes                                                                                                                      |
-| --------------------- | ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| API + web + WebSocket | **Render** free web service        | Docker deploy from GitHub; WebSockets supported. Free instances sleep after inactivity and cold-start on the next request. |
-| PostgreSQL            | **Neon** or **Supabase** free tier | Use the **pooled** connection string for the app; the direct string for migrations.                                        |
-| CI                    | GitHub Actions                     | Free for public repositories.                                                                                              |
+| Component             | Service                | Free tier                                                         |
+| --------------------- | ---------------------- | ----------------------------------------------------------------- |
+| API + web + WebSocket | **Render** web service | 512 MB, sleeps after 15 minutes idle, HTTPS and a domain included |
+| PostgreSQL            | **Neon**               | 0.5 GB, no sleep on the free plan                                 |
+| CI                    | GitHub Actions         | Free for public repositories                                      |
 
-```mermaid
-graph LR
-    U[Browser] -- HTTPS/WSS --> R["Render web service<br/>Fastify: /api + static SPA"]
-    R -- "TLS, pooled" --> N[(Neon / Supabase<br/>PostgreSQL 16)]
-    G[GitHub] -- push --> CI[Actions: lint · test · build]
-    CI -- deploy hook --> R
+Nothing here needs a card. Total cost: zero. Total time: about fifteen minutes, most of which is
+Render building the image.
+
+### 1. Push the repository to GitHub
+
+Render deploys from a repository, so it needs one.
+
+```bash
+gh repo create aftergame --private --source=. --push
 ```
 
-Two consequences of the free tier, and how the design already handles them:
+### 2. Create the database (Neon)
 
-1. **Idle sleep drops WebSockets.** Socket.IO reconnects with backoff and the client refetches
-   `GET /sessions/:id/state`, so a sleeping instance is a two-second pause, not a broken game.
-   This is precisely why the snapshot endpoint exists.
-2. **Serverless PostgreSQL limits connections.** Use the pooled connection string with
-   `?pgbouncer=true&connection_limit=5`; Prisma's pool is bounded in config.
+1. Sign up at **neon.tech** and create a project. Any region; pick the one nearest your players.
+2. On the project dashboard, copy the connection string. It looks like
+   `postgresql://user:password@ep-something.region.aws.neon.tech/neondb?sslmode=require`.
+3. Add `&connection_limit=5` to the end.
 
-TLS, HTTP/2 and the domain are handled by the platform. Nothing else is required.
+Use the **direct** connection string, not the pooled one. The pooled endpoint runs PgBouncer in
+transaction mode, which `prisma migrate deploy` cannot use, and this app opens a handful of
+connections rather than hundreds — the pooler solves a problem you do not have.
+
+### 3. Generate a session secret
+
+Anything 32 characters or longer. The app refuses to start on the placeholder from
+`.env.example`, so this cannot be skipped by accident.
+
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+```
+
+### 4. Create the Render service
+
+1. Sign up at **render.com**, then **New → Web Service** and pick the repository.
+2. Set **Runtime** to `Docker`. Render finds the `Dockerfile` at the repository root; leave the
+   build and start commands empty, because the image already carries them.
+3. Choose the **Free** instance type.
+4. Under **Environment**, add these four variables:
+
+   | Key              | Value                                                      |
+   | ---------------- | ---------------------------------------------------------- |
+   | `NODE_ENV`       | `production`                                               |
+   | `DATABASE_URL`   | the Neon string from step 2                                |
+   | `SESSION_SECRET` | the output of step 3                                       |
+   | `APP_ORIGIN`     | `https://<your-service>.onrender.com` — see the note below |
+
+   `PORT` and `HOST` are set by the image; Render's own `PORT` is picked up automatically.
+
+5. Click **Create Web Service**.
+
+**About `APP_ORIGIN`.** You will not know the URL until the service exists, and it must match
+what the browser sends exactly — it is the CSRF origin check, and a mismatch rejects every write
+with a 403. So: create the service, let the first deploy finish, copy the URL Render shows at the
+top of the page, set `APP_ORIGIN` to it (no trailing slash), and save. Render redeploys, and the
+second deploy is the one that works.
+
+### 5. Open it
+
+Visit the URL on a phone, a laptop, anything. Register, create a group, press **New game**.
+
+Migrations and the default themes are applied automatically on every boot — the container runs
+`prisma migrate deploy` and the server seeds the three themes idempotently before it listens. A
+deploy that migrated but never seeded would come up healthy with an empty theme picker, which is
+exactly the kind of broken that health checks call fine.
+
+### What the free tier costs you
+
+**The service sleeps after 15 minutes of inactivity, and the next request takes ~50 seconds to
+wake it.** For a party game this lands badly: the first person to open the link waits, and
+everyone else arrives to a working app. Tell whoever opens it first to do so a minute early.
+
+Sleep also drops the WebSocket. That part is handled — Socket.IO reconnects with backoff and the
+client refetches the game state, which is what the snapshot endpoint is for — so a sleeping
+instance is a pause rather than a lost game. It is covered by an end-to-end test.
+
+If you want it always on, the cheapest fix is Render's paid instance (about $7/month). Path B
+below is the free alternative that never sleeps.
 
 ## Path B — Self-host (genuinely free forever, and fully private)
 
