@@ -24,7 +24,8 @@ RUN corepack enable
 WORKDIR /repo
 
 # Only the manifests, so a source-only change does not re-resolve the dependency graph.
-COPY pnpm-lock.yaml pnpm-workspace.yaml package.json .npmrc ./COPY apps/api/package.json apps/api/
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json .npmrc ./
+COPY apps/api/package.json apps/api/
 COPY apps/web/package.json apps/web/
 COPY packages/config/package.json packages/config/
 COPY packages/game-core/package.json packages/game-core/
