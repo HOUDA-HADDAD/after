@@ -20,6 +20,10 @@ export interface SessionThemeDto {
   icon: string;
   supportsComments: boolean;
   supportsAuthorGuess: boolean;
+  /** True for the seeded defaults, which no group may edit or delete (D19). */
+  isSystem: boolean;
+  /** True when this group wrote it — the only themes the management screen offers to change. */
+  isCustom: boolean;
 }
 
 /** A participant, as everyone sees them. Being on the roster is not secret; what you wrote is. */
@@ -84,12 +88,26 @@ export interface TimelineCommentDto {
   createdAt: string;
 }
 
+/**
+ * One emoji's tally on an answer.
+ *
+ * Counts and a flag for the viewer, and deliberately nothing else. Who reacted is knowable to the
+ * database and to nobody else (D20) — there is no field here that could carry it, which is a
+ * stronger guarantee than a rule about not filling one in.
+ */
+export interface ReactionTallyDto {
+  emoji: string;
+  count: number;
+  youReacted: boolean;
+}
+
 export interface TimelineAnswerDto {
   id: string;
   body: string | null;
   author: PlayerRefDto | null;
   skipped: boolean;
   comments: TimelineCommentDto[];
+  reactions: ReactionTallyDto[];
 }
 
 export interface TimelineTextDto {

@@ -196,7 +196,8 @@ beforeAll(async () => {
 
   for (const player of [ahmed, lina]) await api(player.token, 'POST', '/join', { code });
 
-  const themes = await api(sarah.token, 'GET', '/themes');
+  // Group-scoped: the defaults plus whatever this group wrote (D19).
+  const themes = await api(sarah.token, 'GET', `/groups/${groupId}/themes`);
   const found = (themes.json() as { themes: SessionThemeDto[] }).themes.find(
     (theme) => theme.slug === 'anecdotes',
   );

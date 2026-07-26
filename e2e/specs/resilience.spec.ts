@@ -26,7 +26,7 @@ test.describe('a dropped connection', () => {
 
     try {
       const groupId = await assembleGroup(sarah, [ahmed]);
-      const prompts = await anecdotesPrompts(sarah);
+      const prompts = await anecdotesPrompts(sarah, groupId);
       const sessionId = await openGame(sarah, groupId);
 
       await joinGame(ahmed, sessionId);
@@ -90,7 +90,7 @@ test.describe('a dropped connection', () => {
 
     try {
       const groupId = await assembleGroup(sarah, [ahmed]);
-      const prompts = await anecdotesPrompts(sarah);
+      const prompts = await anecdotesPrompts(sarah, groupId);
       const sessionId = await openGame(sarah, groupId);
 
       await joinGame(ahmed, sessionId);
@@ -126,7 +126,7 @@ test.describe('a player who never comes back', () => {
 
     try {
       const groupId = await assembleGroup(sarah, [ahmed, lina]);
-      const prompts = await anecdotesPrompts(sarah);
+      const prompts = await anecdotesPrompts(sarah, groupId);
       const sessionId = await openGame(sarah, groupId);
 
       for (const player of [ahmed, lina]) await joinGame(player, sessionId);

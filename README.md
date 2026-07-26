@@ -7,15 +7,16 @@ with a single theme, everyone writes one anonymous text, texts are randomly redi
 players answer, the table talks — and only at the very end, only if you asked for it,
 do you find out who wrote what.
 
-> **Status: Phase 9 of 10 complete — hardened, measured, and ready to deploy.** Register, create a
-> private group, invite friends, punish someone, start a themed game, write anonymously, answer
-> the texts you are dealt, discuss them, guess who wrote what, and vote on whether to put names to
-> any of it. The rules live in `@aftergame/game-core` (no dependencies, 100% branch coverage); an
-> anonymity regression suite asserts on real serialized payloads; a full-game suite plays complete
-> three-player games through the real screens against a real API and a real PostgreSQL; and a
-> Playwright suite drives the built stack in a real browser on desktop and mobile with no
-> accessibility rules disabled. Self-hosting is one `docker compose` away — see
-> [deployment](docs/09-deployment.md). Phase 10 is optional polish.
+> **Status: all ten phases delivered; Phase 10 continues.** Register, create a private group,
+> invite friends, punish someone, write your own themes, start a game, write anonymously, answer
+> the texts you are dealt, react to them, discuss them, guess who wrote what, and vote on whether
+> to put names to any of it. The rules live in `@aftergame/game-core` (no dependencies, 100%
+> branch coverage); an anonymity regression suite asserts on real serialized payloads; a full-game
+> suite plays complete three-player games through the real screens against a real API and a real
+> PostgreSQL; and a Playwright suite drives the built stack in a real browser on desktop and
+> mobile with no accessibility rules disabled. Self-hosting is one `docker compose` away — see
+> [deployment](docs/09-deployment.md). Phase 10 is an open backlog: password reset, per-phase
+> timers, PWA and i18n are still on it ([roadmap](docs/06-roadmap.md)).
 
 ---
 

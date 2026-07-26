@@ -472,6 +472,118 @@ describe('anonymity', () => {
 
   /* ---- A10 ------------------------------------------------------------------------------ */
 
+  /**
+   * A12 — reactions are counted, never attributed.
+   *
+   * A reaction is the one piece of game content whose row *must* record who produced it: a player
+   * has to be able to take their own back, and must not be able to remove anybody else's. That
+   * makes it the easiest thing in the app to leak by accident, which is why it is pinned here
+   * rather than left to the projection's good intentions (D20).
+   */
+  describe('A12 — reactions carry counts, never reactors', () => {
+    it('reports a tally with no player in it, however many people reacted', async () => {
+      const game = await makeLobby(app, 4);
+
+      await call(app, game.host.token, 'POST', `/sessions/${game.sessionId}/start`);
+      await everyoneWrites(app, game);
+      await everyoneAnswers(app, game);
+
+      const timeline = await state(app, game.host.token, game.sessionId);
+      const answerId = timeline.timeline!.texts[0]!.answers[0]!.id;
+
+      // Everybody reacts with the same emoji, so a leak would have three names to leak.
+      for (const player of game.all) {
+        await call(
+          app,
+          player.token,
+          'PUT',
+          `/sessions/${game.sessionId}/answers/${answerId}/reactions`,
+          { emoji: '😂' },
+        );
+      }
+
+      const response = await call(app, game.all[1]!.token, 'GET', `/sessions/${game.sessionId}`);
+      const raw = response.body;
+      const seen = (await response.json()) as typeof timeline;
+      const tally = seen.timeline!.texts[0]!.answers[0]!.reactions;
+
+      expect(tally).toEqual([{ emoji: '😂', count: 4, youReacted: true }]);
+
+      // The whole payload, not just the field we remembered to look at: no player id appears
+      // anywhere near a reaction.
+      for (const player of game.all) {
+        const playerRow = seen.players.find((entry) => entry.username !== undefined);
+        expect(playerRow).toBeDefined();
+        expect(player.userId).toBeDefined();
+        expect(raw).not.toContain(player.userId);
+      }
+    });
+
+    it('tells each viewer only about their own', async () => {
+      const game = await makeLobby(app, 3);
+
+      await call(app, game.host.token, 'POST', `/sessions/${game.sessionId}/start`);
+      await everyoneWrites(app, game);
+      await everyoneAnswers(app, game);
+
+      const timeline = await state(app, game.host.token, game.sessionId);
+      const answerId = timeline.timeline!.texts[0]!.answers[0]!.id;
+
+      await call(
+        app,
+        game.host.token,
+        'PUT',
+        `/sessions/${game.sessionId}/answers/${answerId}/reactions`,
+        { emoji: '❤️' },
+      );
+
+      const asHost = await state(app, game.host.token, game.sessionId);
+      const asOther = await state(app, game.all[1]!.token, game.sessionId);
+
+      const hostTally = asHost.timeline!.texts[0]!.answers[0]!.reactions;
+      const otherTally = asOther.timeline!.texts[0]!.answers[0]!.reactions;
+
+      // Same count for both, and `youReacted` is the only thing that differs — which is exactly
+      // as much as a player needs to know to un-react, and no more.
+      expect(hostTally).toEqual([{ emoji: '❤️', count: 1, youReacted: true }]);
+      expect(otherTally).toEqual([{ emoji: '❤️', count: 1, youReacted: false }]);
+    });
+
+    it('cannot remove a reaction that belongs to someone else', async () => {
+      const game = await makeLobby(app, 3);
+
+      await call(app, game.host.token, 'POST', `/sessions/${game.sessionId}/start`);
+      await everyoneWrites(app, game);
+      await everyoneAnswers(app, game);
+
+      const timeline = await state(app, game.host.token, game.sessionId);
+      const answerId = timeline.timeline!.texts[0]!.answers[0]!.id;
+
+      await call(
+        app,
+        game.host.token,
+        'PUT',
+        `/sessions/${game.sessionId}/answers/${answerId}/reactions`,
+        { emoji: '👏' },
+      );
+
+      // Another player asks for the same reaction to be removed. The delete is scoped by the
+      // caller's own player id, so it removes nothing.
+      await call(
+        app,
+        game.all[1]!.token,
+        'DELETE',
+        `/sessions/${game.sessionId}/answers/${answerId}/reactions`,
+        { emoji: '👏' },
+      );
+
+      const after = await state(app, game.host.token, game.sessionId);
+      expect(after.timeline!.texts[0]!.answers[0]!.reactions).toEqual([
+        { emoji: '👏', count: 1, youReacted: true },
+      ]);
+    });
+  });
+
   describe('A10 — game content never reaches a log line', () => {
     /** A logger with the application's real redaction config, writing where we can read it. */
     const captureLog = (): { lines: string[]; log: pino.Logger } => {

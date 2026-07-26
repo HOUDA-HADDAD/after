@@ -12,6 +12,25 @@ export const TEXT_MAX_LENGTH = 1000;
 /** Comments are shorter than answers by design — they are reactions, not essays. */
 export const COMMENT_MAX_LENGTH = 500;
 
+/**
+ * The reaction palette (D20).
+ *
+ * A fixed set rather than free emoji input, for two reasons that both matter. A closed set cannot
+ * become a second, unmoderated comment field — nobody can react with a sentence written in
+ * regional indicators. And a small palette keeps the tally readable: six counts under an answer
+ * is a glance, forty is a wall.
+ */
+export const REACTIONS = ['😂', '😮', '❤️', '😬', '👏', '🤔'] as const;
+
+export type ReactionEmoji = (typeof REACTIONS)[number];
+
+export const isReactionEmoji = (value: string): value is ReactionEmoji =>
+  (REACTIONS as readonly string[]).includes(value);
+
+/** Group-written theme copy bounds. Long enough to be useful, short enough to fit a card. */
+export const THEME_NAME_MAX_LENGTH = 40;
+export const THEME_TEXT_MAX_LENGTH = 160;
+
 /** Spec: "Minimum players: 2." */
 export const MIN_PLAYERS_PER_SESSION = 2;
 

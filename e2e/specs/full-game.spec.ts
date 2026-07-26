@@ -34,7 +34,7 @@ test.describe('a game played by three people at once', () => {
 
     try {
       const groupId = await assembleGroup(sarah, [ahmed, lina]);
-      const prompts = await anecdotesPrompts(sarah);
+      const prompts = await anecdotesPrompts(sarah, groupId);
 
       // Twice, so ahmed comes in on level 2 and is dealt three texts rather than one.
       await punish(sarah, groupId, ahmed);
@@ -198,7 +198,7 @@ test.describe('a game played by three people at once', () => {
 
     try {
       const groupId = await assembleGroup(sarah, [ahmed]);
-      const prompts = await anecdotesPrompts(sarah);
+      const prompts = await anecdotesPrompts(sarah, groupId);
       const sessionId = await openGame(sarah, groupId);
 
       await joinGame(ahmed, sessionId);

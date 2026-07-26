@@ -188,7 +188,7 @@ describe('game sessions', () => {
 
       const sessionId = (
         await call(app, host.token, 'POST', `/groups/${groupId}/sessions`, {
-          themeId: await themeId(app, host.token, 'questions'),
+          themeId: await themeId(app, host.token, 'questions', groupId),
         })
       ).json().id as string;
 
@@ -207,7 +207,7 @@ describe('game sessions', () => {
         'POST',
         `/groups/${game.groupId}/sessions`,
         {
-          themeId: await themeId(app, game.host.token, 'questions'),
+          themeId: await themeId(app, game.host.token, 'questions', game.groupId),
         },
       );
 
@@ -534,7 +534,7 @@ describe('game sessions', () => {
         'POST',
         `/groups/${game.groupId}/sessions`,
         {
-          themeId: await themeId(app, game.host.token, 'questions'),
+          themeId: await themeId(app, game.host.token, 'questions', game.groupId),
         },
       );
       expect(response.statusCode).toBe(201);

@@ -133,20 +133,24 @@ describe('repositories', () => {
   });
 
   describe('themes', () => {
+    // Any id works: the defaults belong to no group, so they are playable everywhere. Using a
+    // group that does not exist also proves the query is not accidentally joining on one.
+    const NO_GROUP = '00000000-0000-4000-8000-000000000000';
+
     it('seeds the three default themes', async () => {
       await seedThemes(prisma);
-      const themes = await createThemesRepository(prisma).list();
+      const themes = await createThemesRepository(prisma).listForGroup(NO_GROUP);
 
       expect(themes.map((theme) => theme.slug)).toEqual(['questions', 'challenges', 'anecdotes']);
     });
 
     it('is idempotent — re-seeding never duplicates or renumbers', async () => {
       await seedThemes(prisma);
-      const first = await createThemesRepository(prisma).list();
+      const first = await createThemesRepository(prisma).listForGroup(NO_GROUP);
 
       await seedThemes(prisma);
       await seedThemes(prisma);
-      const third = await createThemesRepository(prisma).list();
+      const third = await createThemesRepository(prisma).listForGroup(NO_GROUP);
 
       expect(third).toHaveLength(SYSTEM_THEMES.length);
       // Same rows, not replacements: ids are stable across re-seeds.
@@ -157,9 +161,9 @@ describe('repositories', () => {
       await seedThemes(prisma);
       const repo = createThemesRepository(prisma);
 
-      const anecdotes = await repo.findBySlug('anecdotes');
-      const questions = await repo.findBySlug('questions');
-      const challenges = await repo.findBySlug('challenges');
+      const anecdotes = await repo.findSystemBySlug('anecdotes');
+      const questions = await repo.findSystemBySlug('questions');
+      const challenges = await repo.findSystemBySlug('challenges');
 
       expect(anecdotes).toMatchObject({ supportsComments: true, supportsAuthorGuess: true });
       expect(questions).toMatchObject({ supportsComments: false, supportsAuthorGuess: false });
@@ -168,7 +172,7 @@ describe('repositories', () => {
 
     it('marks seeded themes as system themes so they cannot be deleted as user content', async () => {
       await seedThemes(prisma);
-      const themes = await createThemesRepository(prisma).list();
+      const themes = await createThemesRepository(prisma).listForGroup(NO_GROUP);
 
       expect(themes.every((theme) => theme.isSystem)).toBe(true);
     });
@@ -182,7 +186,7 @@ describe('repositories', () => {
         name: 'Questions, reworded',
       });
 
-      const updated = await repo.findBySlug('questions');
+      const updated = await repo.findSystemBySlug('questions');
       expect(updated?.name).toBe('Questions, reworded');
       expect(updated?.isSystem).toBe(true);
     });

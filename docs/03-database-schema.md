@@ -406,3 +406,18 @@ The mitigation is a test, not a convention: the `hand-written DDL is present` bl
 rest of that suite proves each constraint actually rejects bad data. If someone runs
 `migrate dev` and commits the result unedited, CI goes red immediately rather than a punishment
 counter quietly accepting the value 7 in production.
+
+## Phase 10 additions
+
+**`themes.group_id`** — nullable. Null is a seeded default, playable everywhere and owned by
+nobody; anything else belongs to the group that wrote it (D19). Slug uniqueness is per group, plus
+a partial unique index on `(slug) WHERE group_id IS NULL` to keep the defaults unique among
+themselves — NULLs are distinct in a unique index, so the compound key alone constrains nothing
+there. `ON DELETE CASCADE`: a deleted group takes its own themes with it.
+
+**`reactions`** — `(session_id, answer_id, player_id, emoji)`, unique on
+`(answer_id, player_id, emoji)`. The row records who reacted because a player must be able to take
+their own back and must not be able to remove anyone else's; no projection ever carries that
+identity outward (D20). The unique index is what makes a double tap idempotent rather than a
+second row, and what lets the count be trusted without a `DISTINCT`. Session-scoped like every
+other game table, so the purge cascade reaches it.

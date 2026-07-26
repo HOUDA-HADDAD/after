@@ -31,6 +31,8 @@ export const GROUP_ACTIONS = [
   'session:leave',
   'session:play',
   'session:host',
+  'theme:read',
+  'theme:manage',
 ] as const;
 
 export type GroupAction = (typeof GROUP_ACTIONS)[number];
@@ -78,6 +80,17 @@ export function can(action: GroupAction, actor: Actor, target?: Target): boolean
     // hosts, not a private list kept about people.
     case 'punishment:list':
       return true;
+
+    /**
+     * Anyone may see the group's themes — they have to, to know what game they are playing.
+     * Writing one is a host power, for the same reason opening a game is: a theme is the prompt
+     * everybody then has to answer (D19).
+     */
+    case 'theme:read':
+      return true;
+
+    case 'theme:manage':
+      return isHost(actor.role);
 
     /**
      * Any member may watch a game, join one, leave one, and take part in the one they joined.

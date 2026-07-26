@@ -138,7 +138,7 @@ async function main(): Promise<void> {
     }
   }
 
-  const themes = (await call(host, 'GET', '/themes')).json() as {
+  const themes = (await call(host, 'GET', `/groups/${groupId}/themes`)).json() as {
     themes: { id: string; slug: string }[];
   };
   const themeId = themes.themes.find((theme) => theme.slug === 'anecdotes')!.id;

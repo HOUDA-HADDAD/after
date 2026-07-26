@@ -242,6 +242,54 @@ Chrome, Edge and Safari, and absent in Firefox. **Ruling:** progressive enhancem
 microphone button is feature-detected and simply does not render where unsupported. Typing is
 always available. Same limit (1000 chars) applies to texts and answers; comments are capped at 500.
 
+## D19. A group may write its own themes; the seeded three belong to nobody
+
+D15 made themes data rather than `if` statements, which left "a fourth theme" as a seed row and a
+deploy. Phase 10 asks whether a _group_ can add one. **Ruling:** yes, with an owner.
+
+A theme row now carries a nullable `group_id`. Null is one of the seeded defaults: playable
+everywhere, editable by nobody, which is what makes "Anecdotes" mean the same thing in every
+group. Anything else belongs to the group that wrote it and is visible only there.
+
+Three consequences, each of which is a rule rather than a preference:
+
+- **There is no installation-wide theme list any more.** The route is `/groups/:id/themes`. A
+  global endpoint would hand every group's prompts to every other group, and "remember to filter
+  it" is the kind of rule that holds until somebody adds a second call site.
+- **Writing is a host power, reading is not.** A theme is the prompt the whole table then has to
+  answer, so it sits with opening a game. But you cannot decide whether to join a game without
+  knowing what it will ask of you.
+- **A theme a game is using is frozen — editing and deleting both refuse.** The banner is pinned
+  for the whole game, and a finished game keeps it on screen until the purge window closes (D11).
+  Rewriting a prompt mid-sentence would land on the players, not on whoever edited it. The refusal
+  says how many games and when they go, rather than greying a button out.
+
+Two groups may both write a "confessions". Slug uniqueness is per group, with a partial unique
+index keeping the seeded slugs unique among themselves — NULLs are distinct in a unique index, so
+the compound key alone would not have constrained them at all.
+
+## D20. Reactions are counted, never attributed
+
+Reactions on answers are the smallest fun-per-line feature in the backlog, and the one most able
+to undo the anonymity model by accident. **Ruling:** a fixed palette, and a wire shape of
+`{ emoji, count, youReacted }` with no field for who reacted.
+
+The row has to record the reactor — a player must be able to take their own back and must not be
+able to remove anybody else's. That identity stops at the repository: the count is computed in
+the database with a `GROUP BY`, and the only per-player fact that leaves is the viewer's own flag.
+There is nothing in the payload that could carry the rest, which is a stronger guarantee than a
+rule about not filling a field in. Asserted by A12 in the anonymity suite.
+
+The palette is closed rather than free emoji input for two reasons that both bite. An open field
+becomes a second, unmoderated comment box — nobody should be able to react with a sentence
+written in regional indicators. And six counts under an answer is a glance; forty is a wall.
+
+**What this does leak, stated plainly:** that _somebody_ reacted. In a three-player game, a count
+of two you are not part of tells you both others did. That is participation, not authorship —
+the same class of inference as knowing a comment exists — and it is the price of the counter being
+the point of the feature. Reactions are disabled for a theme without a discussion, along with
+comments, because the capability flag governs both (D15).
+
 ---
 
 ## Open questions for the product owner
@@ -261,4 +309,5 @@ These do not block Phase 0–4. Answers are needed before Phase 7.
    sane UI and distribution cost. Confirm.
 6. **Account recovery** — the brief specifies email + password with no mention of password reset.
    A reset flow needs outbound email (free tiers exist, e.g. Resend/Brevo, but it is a
-   dependency). Phase 9 stretch; until then, lost password = lost account.
+   dependency, and choosing one is a product decision rather than an engineering one). Still open
+   after Phase 10 for exactly that reason; until then, lost password = lost account.

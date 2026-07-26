@@ -10,7 +10,8 @@ import {
   type SessionPhase,
   type TextRecord,
 } from '@aftergame/game-core';
-import type { TimelineDto } from '@aftergame/shared';
+import { REACTIONS, type ReactionEmoji, type TimelineDto } from '@aftergame/shared';
+import type { ReactionTally } from './reactions.repository.js';
 import type { Answer, AuthorGuess, Comment, GameText, TextAssignment } from '@prisma/client';
 import type { PlayerWithUser, SessionWithTheme } from './sessions.repository.js';
 
@@ -33,6 +34,8 @@ export interface TimelineSources {
   comments: Comment[];
   guesses: AuthorGuess[];
   players: PlayerWithUser[];
+  /** Already counted, and already anonymous — see `reactions.repository.ts` (D20). */
+  reactions: ReactionTally[];
 }
 
 export function buildTimeline(
@@ -92,7 +95,7 @@ export function buildTimeline(
     guessedPlayerId: guess.guessedPlayerId,
   }));
 
-  return projectTimeline({
+  const timeline = projectTimeline({
     phase: session.status satisfies SessionPhase,
     outcome: computeRevealOutcome(participants, votes),
     viewerPlayerId,
@@ -102,4 +105,38 @@ export function buildTimeline(
     comments,
     guesses,
   });
+
+  /**
+   * Reactions are attached after the projection, not through it.
+   *
+   * `projectTimeline` exists to decide whether a *name* may be attached to something, and a
+   * reaction tally has no name in it to decide about — the repository counted them in the
+   * database and returned totals plus the viewer's own flag. Threading them through the anonymity
+   * boundary would imply a decision that is not there to make, and would teach `game-core` a
+   * concept it does not need to know (D20).
+   */
+  const byAnswer = new Map<string, TimelineDto['texts'][number]['answers'][number]['reactions']>();
+
+  for (const tally of sources.reactions) {
+    const existing = byAnswer.get(tally.answerId) ?? [];
+
+    existing.push({ emoji: tally.emoji, count: tally.count, youReacted: tally.youReacted });
+    byAnswer.set(tally.answerId, existing);
+  }
+
+  return {
+    ...timeline,
+    texts: timeline.texts.map((text) => ({
+      ...text,
+      answers: text.answers.map((answer) => ({
+        ...answer,
+        // Ordered by the palette, so a tally does not reshuffle itself as counts change.
+        reactions: (byAnswer.get(answer.id) ?? []).sort(
+          (left, right) =>
+            REACTIONS.indexOf(left.emoji as ReactionEmoji) -
+            REACTIONS.indexOf(right.emoji as ReactionEmoji),
+        ),
+      })),
+    })),
+  };
 }

@@ -83,7 +83,7 @@ test.describe('every screen, in both themes', () => {
         await freezeAnimations(sarah.context);
 
         const groupId = await assembleGroup(sarah, [ahmed]);
-        const prompts = await anecdotesPrompts(sarah);
+        const prompts = await anecdotesPrompts(sarah, groupId);
 
         /* ---- signed out ----------------------------------------------------------------- */
 

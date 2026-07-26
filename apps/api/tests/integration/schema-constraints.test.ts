@@ -487,4 +487,146 @@ describe('schema constraints', () => {
       ).rejects.toThrow(/constraint/i);
     });
   });
+
+  /**
+   * The Phase 10 hand-written pieces. Prisma cannot express a partial unique index or a CHECK, so
+   * a future generated migration could drop them without anyone noticing — except here.
+   */
+  describe('themes', () => {
+    it('keeps the seeded slugs unique among themselves', async () => {
+      const shape = {
+        slug: 'anecdotes',
+        name: 'Impostor',
+        description: 'x',
+        writePrompt: 'x',
+        writePlaceholder: '',
+        answerPrompt: 'x',
+        icon: '🎭',
+      };
+
+      await prisma.theme.create({ data: shape });
+
+      // The compound unique on (group_id, slug) does not constrain these at all — NULLs are
+      // distinct in a unique index, so it would happily accept a second one. The partial index on
+      // `(slug) WHERE group_id IS NULL` is the thing doing the work here.
+      await expect(prisma.theme.create({ data: shape })).rejects.toThrow(/unique|constraint/i);
+    });
+
+    it('lets two groups each have a theme of the same slug', async () => {
+      const first = await makeGroup(prisma, (await makeUser(prisma)).id);
+      const second = await makeGroup(prisma, (await makeUser(prisma)).id);
+
+      const shape = {
+        slug: 'confessions',
+        name: 'Confessions',
+        description: 'x',
+        writePrompt: 'x',
+        writePlaceholder: '',
+        answerPrompt: 'x',
+        icon: '🙊',
+        isSystem: false,
+      };
+
+      await prisma.theme.create({ data: { ...shape, groupId: first.id } });
+
+      // One group naming a theme first must not stop every other group from having one.
+      await expect(
+        prisma.theme.create({ data: { ...shape, groupId: second.id } }),
+      ).resolves.toMatchObject({ slug: 'confessions' });
+    });
+
+    it('rejects a blank prompt, whatever the API did or did not check', async () => {
+      const group = await makeGroup(prisma, (await makeUser(prisma)).id);
+
+      await expect(
+        prisma.theme.create({
+          data: {
+            slug: 'blank',
+            name: 'Blank',
+            description: 'x',
+            writePrompt: '   	  ',
+            writePlaceholder: '',
+            answerPrompt: 'x',
+            icon: '🎭',
+            groupId: group.id,
+            isSystem: false,
+          },
+        }),
+      ).rejects.toThrow(/constraint/i);
+    });
+  });
+
+  describe('reactions', () => {
+    /** A session with one submitted answer to react to. */
+    async function answered() {
+      const { session, players, texts } = await makeAnswerableSession(prisma, 2);
+
+      // The receiver is the *other* player: nobody answers their own text unless forced to (D4).
+      const assignment = await prisma.textAssignment.create({
+        data: { sessionId: session.id, textId: texts[0]!.id, receiverPlayerId: players[1]!.id },
+      });
+
+      const answer = await prisma.answer.create({
+        data: {
+          assignmentId: assignment.id,
+          sessionId: session.id,
+          body: 'An answer.',
+          status: 'SUBMITTED',
+        },
+      });
+
+      return { session, players, answer };
+    }
+
+    it('allows one reaction of an emoji per player per answer', async () => {
+      const { session, players, answer } = await answered();
+
+      await prisma.reaction.create({
+        data: { sessionId: session.id, answerId: answer.id, playerId: players[0]!.id, emoji: '😂' },
+      });
+
+      // The unique index is what makes a double tap idempotent rather than a second row, and what
+      // lets the count be trusted without a DISTINCT.
+      await expect(
+        prisma.reaction.create({
+          data: {
+            sessionId: session.id,
+            answerId: answer.id,
+            playerId: players[0]!.id,
+            emoji: '😂',
+          },
+        }),
+      ).rejects.toThrow(/unique|constraint/i);
+    });
+
+    it('lets a player react with two different emoji, and two players with the same one', async () => {
+      const { session, players, answer } = await answered();
+
+      await prisma.reaction.create({
+        data: { sessionId: session.id, answerId: answer.id, playerId: players[0]!.id, emoji: '😂' },
+      });
+
+      await expect(
+        prisma.reaction.create({
+          data: {
+            sessionId: session.id,
+            answerId: answer.id,
+            playerId: players[0]!.id,
+            emoji: '👏',
+          },
+        }),
+      ).resolves.toBeDefined();
+
+      await expect(
+        prisma.reaction.create({
+          data: {
+            sessionId: session.id,
+            answerId: answer.id,
+            playerId: players[1]!.id,
+            emoji: '😂',
+          },
+        }),
+      ).resolves.toBeDefined();
+    });
+  });
 });

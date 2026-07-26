@@ -22,6 +22,8 @@ export const ANECDOTES: SessionThemeDto = {
   icon: '🎭',
   supportsComments: true,
   supportsAuthorGuess: true,
+  isSystem: true,
+  isCustom: false,
 };
 
 export const VIEWER_USER_ID = 'user-sarah';
@@ -122,6 +124,7 @@ export function makeTimeline(overrides: Partial<TimelineDto> = {}): TimelineDto 
             body: 'Respect for the ambition.',
             author: null,
             skipped: false,
+            reactions: [],
             comments: [
               {
                 id: 'c1',
@@ -143,6 +146,7 @@ export function makeTimeline(overrides: Partial<TimelineDto> = {}): TimelineDto 
             author: null,
             skipped: false,
             comments: [],
+            reactions: [],
           },
         ],
       },
@@ -152,7 +156,9 @@ export function makeTimeline(overrides: Partial<TimelineDto> = {}): TimelineDto 
         author: null,
         yourGuess: null,
         yourGuessCorrect: null,
-        answers: [{ id: 'a3', body: null, author: null, skipped: true, comments: [] }],
+        answers: [
+          { id: 'a3', body: null, author: null, skipped: true, comments: [], reactions: [] },
+        ],
       },
     ],
     guessScores: null,

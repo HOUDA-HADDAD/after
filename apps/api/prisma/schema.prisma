@@ -151,6 +151,7 @@ model Group {
   invitations      Invitation[]
   punishmentEvents PunishmentEvent[]
   sessions         GameSession[]
+  themes           Theme[]
 
   @@index([ownerId])
   @@map("groups")
@@ -233,7 +234,11 @@ model PunishmentEvent {
 /// because its row says so, not because of a hardcoded branch on the slug.
 model Theme {
   id   String @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
-  slug String @unique @db.VarChar(40)
+  slug String @db.VarChar(40)
+
+  /// Null for the seeded defaults, which every group can play. Set for a theme a group wrote for
+  /// itself — visible and playable only there (D19).
+  groupId String? @map("group_id") @db.Uuid
 
   name              String
   description       String
@@ -250,8 +255,15 @@ model Theme {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
+  /// Cascade: a deleted group takes its own themes with it. The seeded defaults have no group
+  /// and are unaffected.
+  group    Group?        @relation(fields: [groupId], references: [id], onDelete: Cascade)
   sessions GameSession[]
 
+  /// Two groups may both write a theme called "confessions"; the seeded slugs stay unique among
+  /// themselves, enforced by a partial index the migration adds (Prisma cannot express it).
+  @@unique([groupId, slug])
+  @@index([groupId])
   @@map("themes")
 }
 
@@ -296,6 +308,7 @@ model GameSession {
   assignments      TextAssignment[]
   answers          Answer[]
   comments         Comment[]
+  reactions        Reaction[]
   guesses          AuthorGuess[]
   revealVotes      RevealVote[]
   punishmentEvents PunishmentEvent[]
@@ -338,6 +351,7 @@ model GamePlayer {
   comments        Comment[]
   guessesMade     AuthorGuess[]    @relation("GuessGuesser")
   guessesReceived AuthorGuess[]    @relation("GuessSubject")
+  reactions       Reaction[]
   revealVote      RevealVote?
 
   @@unique([sessionId, userId])
@@ -413,6 +427,7 @@ model Answer {
   assignment TextAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
   session    GameSession    @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   comments   Comment[]
+  reactions  Reaction[]
 
   @@index([sessionId])
   @@map("answers")
@@ -437,6 +452,35 @@ model Comment {
   @@index([answerId, createdAt])
   @@index([sessionId])
   @@map("comments")
+}
+
+/// A reaction on an answer.
+///
+/// The row knows who reacted, because a player must be able to take their own reaction back and
+/// cannot be allowed to remove someone else's. **No projection ever carries that identity**: the
+/// wire shape is `{ emoji, count, youReacted }` and nothing more (D20). The uniqueness constraint
+/// is what makes a double tap idempotent rather than a second row.
+model Reaction {
+  id        String @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  /// Denormalised for purge and session-scoped reads, like every other game table.
+  sessionId String @map("session_id") @db.Uuid
+  answerId  String @map("answer_id") @db.Uuid
+  playerId  String @map("player_id") @db.Uuid
+
+  /// The emoji itself, from a fixed set the API validates — not free text, so this can never
+  /// become a second comment field with no length limit and no moderation.
+  emoji String @db.VarChar(16)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  session GameSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  answer  Answer      @relation(fields: [answerId], references: [id], onDelete: Cascade)
+  player  GamePlayer  @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([answerId, playerId, emoji])
+  @@index([sessionId])
+  @@index([answerId])
+  @@map("reactions")
 }
 
 model AuthorGuess {

@@ -15,7 +15,9 @@ export const queryKeys = {
   punishments: (groupId: string) => ['group', groupId, 'punishments'] as const,
   invitations: (groupId: string) => ['group', groupId, 'invitations'] as const,
   session: (sessionId: string) => ['session', sessionId] as const,
-  themes: ['themes'] as const,
+  /** Themes are group-scoped now: the defaults plus whatever this group wrote (D19). */
+  groupThemes: (groupId: string) => ['group', groupId, 'themes'] as const,
+  customThemes: (groupId: string) => ['group', groupId, 'themes', 'custom'] as const,
 };
 
 /**

@@ -55,7 +55,7 @@ test.describe('the production content security policy', () => {
 
     try {
       const groupId = await assembleGroup(sarah, [ahmed]);
-      const prompts = await anecdotesPrompts(sarah);
+      const prompts = await anecdotesPrompts(sarah, groupId);
       const sessionId = await openGame(sarah, groupId);
 
       await joinGame(ahmed, sessionId);

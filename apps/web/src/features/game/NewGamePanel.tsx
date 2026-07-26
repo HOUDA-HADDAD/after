@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Button, Card, EmptyState, Skeleton, cn } from '@aftergame/ui';
+import { Badge, Button, Card, EmptyState, Skeleton, cn } from '@aftergame/ui';
 import { Gamepad2 } from 'lucide-react';
 import type { SessionThemeDto } from '@aftergame/shared';
 import { queryKeys } from '../../shared/api/queries.js';
@@ -29,11 +29,12 @@ export function NewGamePanel({ groupId, canHost }: { groupId: string; canHost: b
   });
 
   const themes = useQuery({
-    queryKey: queryKeys.themes,
-    queryFn: listThemes,
+    queryKey: queryKeys.groupThemes(groupId),
+    queryFn: () => listThemes(groupId),
     enabled: picking,
-    // Themes are the same for everyone and change when someone deploys, not while you play.
-    staleTime: 60 * 60 * 1000,
+    // The defaults change on a deploy; a group's own change when a host writes one, which the
+    // management screen invalidates. Neither happens mid-pick.
+    staleTime: 5 * 60 * 1000,
   });
 
   const create = useMutation({
@@ -174,7 +175,11 @@ function ThemeOption({
       </span>
 
       <span className="min-w-0">
-        <span className="block text-sm font-medium">{theme.name}</span>
+        <span className="flex items-center gap-2 text-sm font-medium">
+          {theme.name}
+          {/* Says where a theme came from, so "ours" and "everyone's" are never confused (D19). */}
+          {theme.isCustom && <Badge>yours</Badge>}
+        </span>
         <span className="block text-sm text-[var(--color-ink-muted)]">{theme.description}</span>
       </span>
     </button>

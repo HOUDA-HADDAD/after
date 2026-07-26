@@ -1,6 +1,7 @@
 import {
   createCommentSchema,
   createSessionSchema,
+  reactionSchema,
   revealVoteSchema,
   saveDraftSchema,
   submitContentSchema,
@@ -174,6 +175,44 @@ const sessionRoutes: FastifyPluginAsync = async (app) => {
         request.params.answerId,
         body,
         isAnonymous,
+      );
+
+      return reply.status(204).send();
+    },
+  );
+
+  app.put<{ Params: AnswerParams }>(
+    '/:sessionId/answers/:answerId/reactions',
+    { config: { policy: 'session:play' } },
+    async (request, reply) => {
+      const { emoji } = parseOrThrow(reactionSchema, request.body);
+
+      await app.gameplay.react(
+        request.params.sessionId,
+        userId(request),
+        request.params.answerId,
+        emoji,
+        true,
+      );
+
+      return reply.status(204).send();
+    },
+  );
+
+  app.delete<{ Params: AnswerParams }>(
+    '/:sessionId/answers/:answerId/reactions',
+    { config: { policy: 'session:play' } },
+    async (request, reply) => {
+      // The emoji rides in the body rather than the path: it is a character, and putting one in
+      // a URL means percent-encoding four bytes and hoping every proxy agrees about them.
+      const { emoji } = parseOrThrow(reactionSchema, request.body);
+
+      await app.gameplay.react(
+        request.params.sessionId,
+        userId(request),
+        request.params.answerId,
+        emoji,
+        false,
       );
 
       return reply.status(204).send();

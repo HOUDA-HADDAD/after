@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { COMMENT_MAX_LENGTH, TEXT_MAX_LENGTH } from '../constants.js';
+import { COMMENT_MAX_LENGTH, REACTIONS, TEXT_MAX_LENGTH } from '../constants.js';
 
 /**
  * Written content — texts and answers alike.
@@ -42,9 +42,20 @@ export const revealVoteSchema = z.object({
   choice: z.enum(['YES', 'NO']),
 });
 
+/**
+ * A reaction is a choice from a fixed palette, not a string.
+ *
+ * `z.enum` over the constant means an emoji the UI does not offer is a 422 rather than a row —
+ * the palette is the contract, in the one place both sides read it from (D20).
+ */
+export const reactionSchema = z.object({
+  emoji: z.enum(REACTIONS),
+});
+
 export type CreateSessionInput = z.infer<typeof createSessionSchema>;
 export type SaveDraftInput = z.infer<typeof saveDraftSchema>;
 export type SubmitContentInput = z.infer<typeof submitContentSchema>;
 export type CreateCommentInput = z.infer<typeof createCommentSchema>;
 export type SubmitGuessInput = z.infer<typeof submitGuessSchema>;
 export type RevealVoteInput = z.infer<typeof revealVoteSchema>;
+export type ReactionInput = z.infer<typeof reactionSchema>;

@@ -112,7 +112,9 @@ export async function buildApp({ env, prismaClient }: BuildAppOptions): Promise<
       await api.register(groupRoutes, { prefix: '/groups' });
       await api.register(groupSessionRoutes, { prefix: '/groups' });
       await api.register(sessionRoutes, { prefix: '/sessions' });
-      await api.register(themeRoutes, { prefix: '/themes' });
+      // Themes live under their group: with group-written themes, a global list would hand every
+      // group's prompts to every other one (D19).
+      await api.register(themeRoutes, { prefix: '/groups' });
       await api.register(joinRoutes);
     },
     { prefix: '/api/v1' },

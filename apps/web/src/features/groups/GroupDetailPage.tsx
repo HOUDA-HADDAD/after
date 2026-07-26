@@ -9,6 +9,7 @@ import { messageFor } from '../../shared/lib/error-copy.js';
 import { useGroupSubscription } from '../../shared/realtime/SocketProvider.js';
 import { useSession } from '../auth/SessionProvider.js';
 import { NewGamePanel } from '../game/NewGamePanel.js';
+import { ThemeManager } from './ThemeManager.js';
 import { canModerate, MemberRow } from './MemberRow.js';
 import { PunishmentHistory } from './PunishmentHistory.js';
 import {
@@ -212,6 +213,19 @@ export default function GroupDetailPage() {
             ))}
           </ul>
         </Card>
+      </section>
+
+      <section className="mt-8" aria-labelledby="themes-heading">
+        <h2
+          id="themes-heading"
+          className="text-xs font-medium tracking-wide text-[var(--color-ink-muted)] uppercase"
+        >
+          Your themes
+        </h2>
+
+        <div className="mt-2">
+          <ThemeManager groupId={groupId} canManage={isHost} />
+        </div>
       </section>
 
       <section className="mt-8" aria-labelledby="history-heading">

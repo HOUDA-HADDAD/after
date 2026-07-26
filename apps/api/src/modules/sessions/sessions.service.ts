@@ -36,6 +36,8 @@ import {
   type SessionsRepository,
   type SessionWithTheme,
 } from './sessions.repository.js';
+import type { ThemesRepository } from '../themes/themes.repository.js';
+import type { ReactionsRepository } from './reactions.repository.js';
 import { toSessionStateDto } from './sessions.mapper.js';
 import { buildTimeline } from './timeline.js';
 
@@ -46,6 +48,8 @@ const newSeed = (): bigint => BigInt.asUintN(63, randomBytes(8).readBigUInt64BE(
 
 export interface SessionsServiceDeps {
   sessions: SessionsRepository;
+  reactions: ReactionsRepository;
+  themes: ThemesRepository;
   groups: GroupsRepository;
   transaction: TransactionRunner;
   events: EventBus;
@@ -55,6 +59,8 @@ export interface SessionsServiceDeps {
 
 export function createSessionsService({
   sessions,
+  reactions,
+  themes,
   groups,
   transaction,
   events,
@@ -284,6 +290,19 @@ export function createSessionsService({
 
       const membership = await groups.findMembership(groupId, userId);
       if (membership === null) throw new NotFoundError();
+
+      /**
+       * A group may only play the defaults and its own themes (D19).
+       *
+       * Without this, a theme id from another group would be accepted by a foreign-key constraint
+       * that has no opinion about who owns what — and that group's prompt would be pinned to the
+       * banner of a game it has nothing to do with.
+       */
+      const theme = await themes.findById(themeId);
+
+      if (theme === null || (theme.groupId !== null && theme.groupId !== groupId)) {
+        throw new NotFoundError(ERROR_CODES.NOT_FOUND, 'No such theme.');
+      }
 
       const session = await sessions.create({
         groupId,
@@ -559,6 +578,7 @@ export function createSessionsService({
                 skipped: await sessions.listSkippedAssignments(sessionId),
                 comments: await sessions.listComments(sessionId),
                 guesses: await sessions.listGuesses(sessionId),
+                reactions: await reactions.tallyForSession(sessionId, viewerPlayer.id),
                 players,
               },
               participantVotes,

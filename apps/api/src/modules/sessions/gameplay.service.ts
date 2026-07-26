@@ -2,11 +2,13 @@ import { ConflictError, ERROR_CODES, ForbiddenError, NotFoundError } from '@afte
 import type { SessionStateDto } from '@aftergame/shared';
 import { isActionAllowed, type SessionPhase } from '@aftergame/game-core';
 import type { EventBus } from '../../lib/event-bus.js';
+import type { ReactionsRepository } from './reactions.repository.js';
 import type { SessionsRepository } from './sessions.repository.js';
 import type { SessionsService } from './sessions.service.js';
 
 export interface GameplayServiceDeps {
   sessions: SessionsRepository;
+  reactions: ReactionsRepository;
   lifecycle: SessionsService;
   events: EventBus;
 }
@@ -18,7 +20,12 @@ export interface GameplayServiceDeps {
  * own" is the important half: you may submit *your* text and answer *your* assignment, and there
  * is no endpoint that reaches anyone else's.
  */
-export function createGameplayService({ sessions, lifecycle, events }: GameplayServiceDeps) {
+export function createGameplayService({
+  sessions,
+  reactions,
+  lifecycle,
+  events,
+}: GameplayServiceDeps) {
   const assertPhaseAllows = (
     phase: SessionPhase,
     action: 'submitText' | 'submitAnswer' | 'comment' | 'guess' | 'castRevealVote',
@@ -134,6 +141,50 @@ export function createGameplayService({ sessions, lifecycle, events }: GameplayS
       }
 
       await sessions.createComment(sessionId, answerId, player.id, body, isAnonymous);
+      await sessions.touch(sessionId);
+
+      events.emit('timeline.comment_added', { sessionId, answerId });
+    },
+
+    /**
+     * React to an answer, or take the reaction back (D20).
+     *
+     * A toggle rather than separate add and remove endpoints, because that is what the button
+     * does — and it makes a double tap harmless: the unique index means adding twice is one row,
+     * and removing something that is not there is not an error.
+     *
+     * Reacting is allowed wherever commenting is, and gated on the same capability flag: a theme
+     * without a discussion has nothing to react to.
+     */
+    async react(
+      sessionId: string,
+      userId: string,
+      answerId: string,
+      emoji: string,
+      on: boolean,
+    ): Promise<void> {
+      const { session } = await lifecycle.requireSession(sessionId, userId);
+      assertPhaseAllows(session.status, 'comment');
+
+      if (!session.theme.supportsComments) {
+        throw new ForbiddenError(ERROR_CODES.FORBIDDEN, 'This theme does not have reactions.');
+      }
+
+      const player = await lifecycle.requirePlayer(sessionId, userId);
+
+      if (!(await reactions.answerBelongsToSession(answerId, sessionId))) {
+        throw new NotFoundError(ERROR_CODES.NOT_FOUND, 'No such answer.');
+      }
+
+      // Scoped to this player either way, so a request can only ever change the caller's own.
+      const changed = on
+        ? await reactions.add(sessionId, answerId, player.id, emoji)
+        : await reactions.remove(answerId, player.id, emoji);
+
+      // Nothing changed means the tally is already what the caller asked for; telling the room to
+      // refetch would be pure noise.
+      if (!changed) return;
+
       await sessions.touch(sessionId);
 
       events.emit('timeline.comment_added', { sessionId, answerId });

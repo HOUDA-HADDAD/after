@@ -21,7 +21,13 @@ import type {
  * mean nothing outside the session.
  */
 
-export const toThemeDto = (theme: Theme): SessionThemeDto => ({
+/**
+ * `viewerGroupId` decides `isCustom` — whether *this* group wrote it (D19).
+ *
+ * Passing the group rather than reading `theme.groupId` directly means a theme belonging to some
+ * other group can never be described as "yours", even if one somehow reached this function.
+ */
+export const toThemeDto = (theme: Theme, viewerGroupId?: string): SessionThemeDto => ({
   id: theme.id,
   slug: theme.slug,
   name: theme.name,
@@ -32,6 +38,8 @@ export const toThemeDto = (theme: Theme): SessionThemeDto => ({
   icon: theme.icon,
   supportsComments: theme.supportsComments,
   supportsAuthorGuess: theme.supportsAuthorGuess,
+  isSystem: theme.groupId === null,
+  isCustom: theme.groupId !== null && theme.groupId === viewerGroupId,
 });
 
 export const toPlayerDto = (player: PlayerWithUser, viewerUserId: string): SessionPlayerDto => ({
@@ -82,6 +90,18 @@ const timelineCommentJsonSchema = {
   additionalProperties: false,
 } as const;
 
+/** Counts and the viewer's own flag. There is deliberately no field for who reacted (D20). */
+const reactionTallyJsonSchema = {
+  type: 'object',
+  properties: {
+    emoji: { type: 'string' },
+    count: { type: 'integer' },
+    youReacted: { type: 'boolean' },
+  },
+  required: ['emoji', 'count', 'youReacted'],
+  additionalProperties: false,
+} as const;
+
 const timelineAnswerJsonSchema = {
   type: 'object',
   properties: {
@@ -90,8 +110,9 @@ const timelineAnswerJsonSchema = {
     author: playerRefJsonSchema,
     skipped: { type: 'boolean' },
     comments: { type: 'array', items: timelineCommentJsonSchema },
+    reactions: { type: 'array', items: reactionTallyJsonSchema },
   },
-  required: ['id', 'body', 'author', 'skipped', 'comments'],
+  required: ['id', 'body', 'author', 'skipped', 'comments', 'reactions'],
   additionalProperties: false,
 } as const;
 
@@ -152,8 +173,18 @@ export const sessionStateJsonSchema = {
         icon: { type: 'string' },
         supportsComments: { type: 'boolean' },
         supportsAuthorGuess: { type: 'boolean' },
+        isSystem: { type: 'boolean' },
+        isCustom: { type: 'boolean' },
       },
-      required: ['id', 'slug', 'name', 'supportsComments', 'supportsAuthorGuess'],
+      required: [
+        'id',
+        'slug',
+        'name',
+        'supportsComments',
+        'supportsAuthorGuess',
+        'isSystem',
+        'isCustom',
+      ],
       additionalProperties: false,
     },
     players: {
@@ -269,7 +300,7 @@ export function toSessionStateDto(sources: StateSources): SessionStateDto {
     id: sources.session.id,
     groupId: sources.session.groupId,
     phase: sources.session.status,
-    theme: toThemeDto(sources.session.theme),
+    theme: toThemeDto(sources.session.theme, sources.session.groupId),
     players: sources.players.map((player) => toPlayerDto(player, sources.viewerUserId)),
     progress: sources.progress,
     you: viewer,

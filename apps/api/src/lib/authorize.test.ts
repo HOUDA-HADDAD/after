@@ -31,6 +31,11 @@ describe('group authorization', () => {
       // Creating a game and running it are host powers, exactly as the brief specifies.
       { action: 'session:create', owner: true, cohost: true, member: false },
       { action: 'session:host', owner: true, cohost: true, member: false },
+      // You cannot decide whether to join a game without knowing what it will ask of you, so
+      // every member reads themes. Writing one is a host power: a theme is the prompt the whole
+      // table then has to answer (D19).
+      { action: 'theme:read', owner: true, cohost: true, member: true },
+      { action: 'theme:manage', owner: true, cohost: true, member: false },
       { action: 'group:rename', owner: true, cohost: true, member: false },
       { action: 'invitation:create', owner: true, cohost: true, member: false },
       { action: 'invitation:list', owner: true, cohost: true, member: false },

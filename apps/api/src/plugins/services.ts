@@ -17,6 +17,9 @@ import {
   createPunishmentsService,
   type PunishmentsService,
 } from '../modules/punishments/punishments.service.js';
+import { createReactionsRepository } from '../modules/sessions/reactions.repository.js';
+import { createThemesRepository } from '../modules/themes/themes.repository.js';
+import { createThemesService, type ThemesService } from '../modules/themes/themes.service.js';
 import { createSessionsRepository } from '../modules/sessions/sessions.repository.js';
 import {
   createSessionsService,
@@ -36,6 +39,7 @@ declare module 'fastify' {
     punishments: PunishmentsService;
     sessions: SessionsService;
     gameplay: GameplayService;
+    themes: ThemesService;
     events: EventBus;
   }
 }
@@ -71,6 +75,8 @@ const servicesPlugin: FastifyPluginAsync<{ env: Env }> = async (app, { env }) =>
   );
 
   const sessionsRepository = createSessionsRepository(app.prisma);
+  const reactionsRepository = createReactionsRepository(app.prisma);
+  const themesRepository = createThemesRepository(app.prisma);
 
   app.decorate(
     'punishments',
@@ -87,6 +93,8 @@ const servicesPlugin: FastifyPluginAsync<{ env: Env }> = async (app, { env }) =>
 
   const sessions = createSessionsService({
     sessions: sessionsRepository,
+    reactions: reactionsRepository,
+    themes: themesRepository,
     groups: groupsRepository,
     transaction: app.transaction,
     events,
@@ -96,8 +104,17 @@ const servicesPlugin: FastifyPluginAsync<{ env: Env }> = async (app, { env }) =>
   app.decorate('events', events);
   app.decorate('sessions', sessions);
   app.decorate(
+    'themes',
+    createThemesService({ themes: themesRepository, groups: groupsRepository }),
+  );
+  app.decorate(
     'gameplay',
-    createGameplayService({ sessions: sessionsRepository, lifecycle: sessions, events }),
+    createGameplayService({
+      sessions: sessionsRepository,
+      reactions: reactionsRepository,
+      lifecycle: sessions,
+      events,
+    }),
   );
 };
 

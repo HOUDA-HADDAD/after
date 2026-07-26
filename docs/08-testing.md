@@ -151,6 +151,7 @@ leak is defined by what crosses the wire.
 | A9  | No response ever exposes the text→receiver assignment map                                                                                                                                                          |
 | A10 | No log line, at any level, contains text/answer/comment content                                                                                                                                                    |
 | A11 | WebSocket payloads pass A1–A9 identically to their REST equivalents                                                                                                                                                |
+| A12 | Reaction tallies carry counts and the viewer's own flag, never a reactor — and one player cannot remove another's ([D20](00-spec-decisions.md#d20-reactions-are-counted-never-attributed))                         |
 
 A5 and A11 are the ones that would realistically regress during refactoring, which is exactly why
 they are pinned.

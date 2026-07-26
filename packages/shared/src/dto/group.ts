@@ -44,3 +44,26 @@ export interface InvitationDto {
   useCount: number;
   createdAt: string;
 }
+
+/**
+ * A theme a group wrote for itself (D19).
+ *
+ * The same shape the picker uses, plus the two fields the management screen needs to know what it
+ * may touch: a seeded default is never editable, and a theme in use cannot be deleted while a
+ * game still renders it.
+ */
+export interface GroupThemeDto {
+  id: string;
+  slug: string;
+  name: string;
+  description: string;
+  writePrompt: string;
+  writePlaceholder: string;
+  answerPrompt: string;
+  icon: string;
+  supportsComments: boolean;
+  supportsAuthorGuess: boolean;
+  /** How many games reference it. Non-zero means deletion is refused, with this number as the why. */
+  usedByGames: number;
+  createdAt: string;
+}

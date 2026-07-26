@@ -12,8 +12,14 @@ import { apiFetch, apiPost, apiPut } from '../../shared/api/client.js';
 
 const base = (sessionId: string): string => `/sessions/${sessionId}`;
 
-export const listThemes = async (): Promise<SessionThemeDto[]> =>
-  (await apiFetch<{ themes: SessionThemeDto[] }>('/themes')).themes;
+/**
+ * The themes this group may play: the seeded defaults plus its own (D19).
+ *
+ * Group-scoped because themes are — there is no installation-wide list to ask for any more, which
+ * is what stops one group's prompts reaching another's picker.
+ */
+export const listThemes = async (groupId: string): Promise<SessionThemeDto[]> =>
+  (await apiFetch<{ themes: SessionThemeDto[] }>(`/groups/${groupId}/themes`)).themes;
 
 export const getLiveSession = async (groupId: string): Promise<SessionSummaryDto | null> =>
   (await apiFetch<{ session: SessionSummaryDto | null }>(`/groups/${groupId}/session`)).session;
@@ -84,6 +90,25 @@ export const postComment = (
   isAnonymous: boolean,
 ): Promise<void> =>
   apiPost<void>(`${base(sessionId)}/answers/${answerId}/comments`, { body, isAnonymous });
+
+/* ---- reactions ------------------------------------------------------------------------------ */
+
+/**
+ * A toggle, not an add and a remove.
+ *
+ * The emoji rides in the body even on DELETE: it is a character, and putting one in a path means
+ * percent-encoding four bytes and trusting every proxy in between to agree about them.
+ */
+export const setReaction = (
+  sessionId: string,
+  answerId: string,
+  emoji: string,
+  on: boolean,
+): Promise<void> =>
+  apiFetch<void>(`${base(sessionId)}/answers/${answerId}/reactions`, {
+    method: on ? 'PUT' : 'DELETE',
+    body: JSON.stringify({ emoji }),
+  });
 
 export const submitGuess = (
   sessionId: string,

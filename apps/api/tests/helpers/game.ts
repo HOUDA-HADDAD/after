@@ -36,9 +36,18 @@ export const call = (
 export const state = async (app: FastifyInstance, token: string, sessionId: string) =>
   (await call(app, token, 'GET', `/sessions/${sessionId}`)).json() as SessionStateDto;
 
-/** Find a theme by slug — the seed guarantees the three defaults exist. */
-export async function themeId(app: FastifyInstance, token: string, slug: string): Promise<string> {
-  const themes = (await call(app, token, 'GET', '/themes')).json().themes as {
+/**
+ * Find a theme by slug — the seed guarantees the three defaults exist.
+ *
+ * Group-scoped, because themes are: the list is the defaults plus whatever this group wrote (D19).
+ */
+export async function themeId(
+  app: FastifyInstance,
+  token: string,
+  slug: string,
+  groupId: string,
+): Promise<string> {
+  const themes = (await call(app, token, 'GET', `/groups/${groupId}/themes`)).json().themes as {
     id: string;
     slug: string;
   }[];
@@ -76,7 +85,7 @@ export async function makeLobby(
 
   const sessionId = (
     await call(app, host.token, 'POST', `/groups/${groupId}/sessions`, {
-      themeId: await themeId(app, host.token, themeSlug),
+      themeId: await themeId(app, host.token, themeSlug, groupId),
     })
   ).json().id as string;
 

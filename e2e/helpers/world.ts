@@ -122,8 +122,8 @@ export async function punish(owner: Player, groupId: string, target: Player): Pr
   expect(response.status(), await response.text()).toBe(200);
 }
 
-export async function anecdotesThemeId(player: Player): Promise<string> {
-  const response = await api(player).get('/api/v1/themes');
+export async function anecdotesThemeId(player: Player, groupId: string): Promise<string> {
+  const response = await api(player).get(`/api/v1/groups/${groupId}/themes`);
   const { themes } = (await response.json()) as { themes: { id: string; slug: string }[] };
   const theme = themes.find((entry) => entry.slug === 'anecdotes');
 
@@ -135,8 +135,9 @@ export async function anecdotesThemeId(player: Player): Promise<string> {
 /** The theme's own prompts, so specs never hard-code copy that belongs to a database row (D15). */
 export async function anecdotesPrompts(
   player: Player,
+  groupId: string,
 ): Promise<{ write: string; answer: string; name: string }> {
-  const response = await api(player).get('/api/v1/themes');
+  const response = await api(player).get(`/api/v1/groups/${groupId}/themes`);
   const { themes } = (await response.json()) as {
     themes: { slug: string; name: string; writePrompt: string; answerPrompt: string }[];
   };
@@ -148,7 +149,7 @@ export async function anecdotesPrompts(
 }
 
 export async function openGame(owner: Player, groupId: string): Promise<string> {
-  const themeId = await anecdotesThemeId(owner);
+  const themeId = await anecdotesThemeId(owner, groupId);
   const response = await api(owner).post(`/api/v1/groups/${groupId}/sessions`, {
     data: { themeId },
   });

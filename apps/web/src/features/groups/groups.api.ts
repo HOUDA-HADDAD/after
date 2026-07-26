@@ -2,9 +2,11 @@ import type {
   GroupDetailDto,
   GroupMemberDto,
   GroupSummaryDto,
+  GroupThemeDto,
+  GroupThemeInput,
   InvitationDto,
 } from '@aftergame/shared';
-import { apiFetch, apiPost } from '../../shared/api/client.js';
+import { apiFetch, apiPost, apiPut } from '../../shared/api/client.js';
 
 export const listGroups = async (): Promise<GroupSummaryDto[]> =>
   (await apiFetch<{ groups: GroupSummaryDto[] }>('/groups')).groups;
@@ -46,3 +48,22 @@ export const forgiveMember = (groupId: string, userId: string): Promise<GroupMem
 
 export const listPunishments = async (groupId: string): Promise<PunishmentEventDto[]> =>
   (await apiFetch<{ events: PunishmentEventDto[] }>(`/groups/${groupId}/punishments`)).events;
+
+/* ---- group-written themes (D19) --------------------------------------------------------------- */
+
+export const listCustomThemes = async (groupId: string): Promise<GroupThemeDto[]> =>
+  (await apiFetch<{ themes: GroupThemeDto[] }>(`/groups/${groupId}/themes/custom`)).themes;
+
+export const createCustomTheme = (
+  groupId: string,
+  input: GroupThemeInput,
+): Promise<GroupThemeDto> => apiPost<GroupThemeDto>(`/groups/${groupId}/themes`, input);
+
+export const updateCustomTheme = (
+  groupId: string,
+  themeId: string,
+  input: GroupThemeInput,
+): Promise<GroupThemeDto> => apiPut<GroupThemeDto>(`/groups/${groupId}/themes/${themeId}`, input);
+
+export const deleteCustomTheme = (groupId: string, themeId: string): Promise<void> =>
+  apiFetch<void>(`/groups/${groupId}/themes/${themeId}`, { method: 'DELETE' });

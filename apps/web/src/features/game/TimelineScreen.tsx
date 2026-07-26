@@ -2,8 +2,9 @@ import { Badge, Button, Card, EmptyState } from '@aftergame/ui';
 import { EyeOff, MessagesSquare, Trophy } from 'lucide-react';
 import type { SessionStateDto, TimelineTextDto } from '@aftergame/shared';
 import { CommentThread } from './components/CommentThread.js';
+import { ReactionBar } from './components/ReactionBar.js';
 import { GuessWidget } from './components/GuessWidget.js';
-import { endSession, postComment, submitGuess } from './game.api.js';
+import { endSession, postComment, setReaction, submitGuess } from './game.api.js';
 import { useGameAction, useGameEffect } from './useGame.js';
 
 /**
@@ -37,6 +38,12 @@ export function TimelineScreen({ state }: { state: SessionStateDto }) {
     state.id,
     ({ textId, playerId }: { textId: string; playerId: string }) =>
       submitGuess(state.id, textId, playerId),
+  );
+
+  const react = useGameEffect(
+    state.id,
+    ({ answerId, emoji, on }: { answerId: string; emoji: string; on: boolean }) =>
+      setReaction(state.id, answerId, emoji, on),
   );
 
   if (timeline === null || viewer === null) {
@@ -86,8 +93,12 @@ export function TimelineScreen({ state }: { state: SessionStateDto }) {
               yourName={yourName}
               commentPending={comment.isPending}
               guessPending={guess.isPending}
+              reactPending={react.isPending}
               onComment={(answerId, body, isAnonymous) => {
                 comment.mutate({ answerId, body, isAnonymous });
+              }}
+              onReact={(answerId, emoji, on) => {
+                react.mutate({ answerId, emoji, on });
               }}
               onGuess={(playerId) => {
                 guess.mutate({ textId: text.id, playerId });
@@ -150,7 +161,9 @@ function TimelineCard({
   yourName,
   commentPending,
   guessPending,
+  reactPending,
   onComment,
+  onReact,
   onGuess,
 }: {
   text: TimelineTextDto;
@@ -159,7 +172,9 @@ function TimelineCard({
   yourName: string;
   commentPending: boolean;
   guessPending: boolean;
+  reactPending: boolean;
   onComment: (answerId: string, body: string, isAnonymous: boolean) => void;
+  onReact: (answerId: string, emoji: string, on: boolean) => void;
   onGuess: (playerId: string) => void;
 }) {
   return (
@@ -188,6 +203,17 @@ function TimelineCard({
                   {answer.author === null ? 'Anonymous player' : answer.author.username}
                 </p>
               </>
+            )}
+
+            {state.theme.supportsComments && !answer.skipped && (
+              <ReactionBar
+                reactions={answer.reactions}
+                interactive={isReview}
+                pending={reactPending}
+                onToggle={(emoji, on) => {
+                  onReact(answer.id, emoji, on);
+                }}
+              />
             )}
 
             {state.theme.supportsComments && (

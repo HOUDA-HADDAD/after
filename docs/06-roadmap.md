@@ -144,15 +144,23 @@ step; E2E is green in CI; `pnpm audit` is clean at moderate and above.
 
 ## Phase 10 — Polish & stretch · ongoing
 
-Ordered by value, all optional:
+Ordered by value, all optional. Two are done; the rest stay on the list, which is what "ongoing"
+means.
 
-1. Password reset (needs an outbound email provider — free tiers exist but it is a dependency)
-2. Group-custom themes — already supported by the schema, needs only UI ([D15](00-spec-decisions.md#d15-themes-are-data-not-if-statements))
-3. Per-phase timers with automatic advance
-4. Reactions on answers (lightweight, high fun-per-line)
-5. PWA install + push notification for "your turn"
-6. Internationalisation — the copy layer is already centralised for it
-7. `@socket.io/postgres-adapter` for multi-instance scale-out
+| #   | Item                                                                                                                     | Status                                                                                                         |
+| --- | ------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------- |
+| 1   | Password reset                                                                                                           | **Not started.** Needs an outbound email provider — a product decision about which, not an engineering one.    |
+| 2   | Group-custom themes ([D19](00-spec-decisions.md#d19-a-group-may-write-its-own-themes-the-seeded-three-belong-to-nobody)) | **Done.** Needed a schema change after all: `themes` had `is_system` but no owner.                             |
+| 3   | Per-phase timers with automatic advance                                                                                  | Not started. The host can already force every transition (D14), so this is convenience rather than capability. |
+| 4   | Reactions on answers ([D20](00-spec-decisions.md#d20-reactions-are-counted-never-attributed))                            | **Done.** Counted, never attributed.                                                                           |
+| 5   | PWA install + push notification for "your turn"                                                                          | Not started. Push needs VAPID keys and a service worker.                                                       |
+| 6   | Internationalisation                                                                                                     | Not started. The copy layer is centralised for it; the work is volume, not design.                             |
+| 7   | `@socket.io/postgres-adapter` for multi-instance scale-out                                                               | Not started, and not needed: the deployment target is one instance.                                            |
+
+The roadmap said group-custom themes were "already supported by the schema, needs only UI". That
+was optimistic — `themes` carried `is_system` but no owning group, so it took a migration, a
+partial unique index, and moving the theme routes under `/groups/:id` to stop one group's prompts
+reaching another's picker.
 
 ---
 
