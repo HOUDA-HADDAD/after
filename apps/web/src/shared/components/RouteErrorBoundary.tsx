@@ -1,5 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { Button } from '@aftergame/ui';
+import { useT } from '../i18n/LocaleProvider.js';
 
 interface Props {
   children: ReactNode;
@@ -34,22 +35,33 @@ export class RouteErrorBoundary extends Component<Props, State> {
     if (error === null) return this.props.children;
 
     return (
-      <div className="mx-auto max-w-md px-6 py-16 text-center">
-        <h1 className="text-lg font-semibold">Something went wrong on this screen</h1>
-        <p className="mt-2 text-sm text-[var(--color-ink-muted)]">
-          The rest of the app is still working. Try again, or pick another group.
-        </p>
-
-        <Button
-          variant="primary"
-          className="mt-6"
-          onClick={() => {
-            this.setState({ error: null });
-          }}
-        >
-          Try again
-        </Button>
-      </div>
+      <RouteErrorFallback
+        onRetry={() => {
+          this.setState({ error: null });
+        }}
+      />
     );
   }
+}
+
+/**
+ * The fallback, as a function component.
+ *
+ * An error boundary has to be a class — there is no hook equivalent of `getDerivedStateFromError`
+ * — and a class cannot call `useT`. Splitting the message out is the whole fix, and it keeps the
+ * boundary itself doing one thing: catching.
+ */
+function RouteErrorFallback({ onRetry }: { onRetry: () => void }) {
+  const t = useT();
+
+  return (
+    <div className="mx-auto max-w-md px-6 py-16 text-center">
+      <h1 className="text-lg font-semibold">{t('shell.errorTitle')}</h1>
+      <p className="mt-2 text-sm text-[var(--color-ink-muted)]">{t('shell.errorBody')}</p>
+
+      <Button variant="primary" className="mt-6" onClick={onRetry}>
+        {t('shell.tryAgain')}
+      </Button>
+    </div>
+  );
 }

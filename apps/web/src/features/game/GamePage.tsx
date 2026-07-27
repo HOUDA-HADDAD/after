@@ -4,7 +4,8 @@ import { Button, Card, Skeleton } from '@aftergame/ui';
 import { Ghost } from 'lucide-react';
 import { ApiError } from '../../shared/api/client.js';
 import { queryKeys } from '../../shared/api/queries.js';
-import { messageFor } from '../../shared/lib/error-copy.js';
+import { useErrorMessage } from '../../shared/lib/error-copy.js';
+import { useT } from '../../shared/i18n/LocaleProvider.js';
 import { getGroup } from '../groups/groups.api.js';
 import { ThemeBanner } from './components/ThemeBanner.js';
 import { PurgeNotice } from './components/PurgeNotice.js';
@@ -26,6 +27,8 @@ export default function GamePage() {
   const { groupId = '', sessionId = '' } = useParams();
   const navigate = useNavigate();
 
+  const t = useT();
+  const messageFor = useErrorMessage();
   const game = useGame(sessionId);
 
   // The lobby's load preview needs punishment levels, which live on the group rather than the
@@ -50,12 +53,10 @@ export default function GamePage() {
     return (
       <div className="mx-auto max-w-2xl px-4 py-12 text-center sm:px-6">
         <Ghost size={32} aria-hidden="true" className="mx-auto text-[var(--color-ink-subtle)]" />
-        <h1 className="mt-3 text-lg font-semibold">This game has ended and been deleted</h1>
-        <p className="mt-2 text-sm text-[var(--color-ink-muted)]">
-          Finished games do not stick around — that was the deal when you played it.
-        </p>
+        <h1 className="mt-3 text-lg font-semibold">{t('game.goneTitle')}</h1>
+        <p className="mt-2 text-sm text-[var(--color-ink-muted)]">{t('game.goneBody')}</p>
         <Button className="mt-4" onClick={() => void navigate(`/groups/${groupId}`)}>
-          Back to the group
+          {t('game.backToRoom')}
         </Button>
       </div>
     );
@@ -67,7 +68,7 @@ export default function GamePage() {
         <Card className="p-6">
           <p className="text-sm">{messageFor(game.error)}</p>
           <Button className="mt-3" size="sm" onClick={() => void navigate(`/groups/${groupId}`)}>
-            Back to the group
+            {t('game.backToRoom')}
           </Button>
         </Card>
       </div>
@@ -101,15 +102,11 @@ export default function GamePage() {
         <div className="mx-auto max-w-2xl px-4 py-10 sm:px-6">
           <Card className="p-6">
             <p className="font-medium">
-              {state.phase === 'CANCELLED'
-                ? 'The host called this game off.'
-                : 'This game was left alone for too long and expired.'}
+              {state.phase === 'CANCELLED' ? t('game.cancelled') : t('game.abandoned')}
             </p>
-            <p className="mt-2 text-sm text-[var(--color-ink-muted)]">
-              Nothing counts against anyone — an unplayed game is not a game played.
-            </p>
+            <p className="mt-2 text-sm text-[var(--color-ink-muted)]">{t('game.endedBody')}</p>
             <Button className="mt-4" size="sm" onClick={() => void navigate(`/groups/${groupId}`)}>
-              Back to the group
+              {t('game.backToRoom')}
             </Button>
           </Card>
         </div>

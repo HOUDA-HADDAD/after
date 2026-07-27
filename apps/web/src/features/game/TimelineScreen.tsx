@@ -1,6 +1,7 @@
 import { Badge, Button, Card, EmptyState } from '@aftergame/ui';
 import { EyeOff, MessagesSquare, Trophy } from 'lucide-react';
 import type { SessionStateDto, TimelineTextDto } from '@aftergame/shared';
+import { usePlural, useT } from '../../shared/i18n/LocaleProvider.js';
 import { CommentThread } from './components/CommentThread.js';
 import { ReactionBar } from './components/ReactionBar.js';
 import { GuessWidget } from './components/GuessWidget.js';
@@ -22,6 +23,8 @@ import { useGameAction, useGameEffect } from './useGame.js';
  *     not contain, because the payload does not contain one.
  */
 export function TimelineScreen({ state }: { state: SessionStateDto }) {
+  const t = useT();
+  const plural = usePlural();
   const timeline = state.timeline;
   const viewer = state.you;
   const isReview = state.phase === 'REVIEW';
@@ -51,8 +54,8 @@ export function TimelineScreen({ state }: { state: SessionStateDto }) {
       <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
         <EmptyState
           icon={<MessagesSquare size={28} aria-hidden="true" />}
-          title="Nothing to read here"
-          description="This timeline belongs to the people who played the game."
+          title={t('timeline.nothing')}
+          description={t('timeline.nothingBody')}
         />
       </div>
     );
@@ -64,15 +67,15 @@ export function TimelineScreen({ state }: { state: SessionStateDto }) {
     <div className="mx-auto max-w-[72ch] px-4 py-6 sm:px-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-lg font-semibold tracking-tight">
-          {timeline.texts.length} {timeline.texts.length === 1 ? 'text' : 'texts'}
+          {plural('timeline.textsOne', 'timeline.texts', timeline.texts.length)}
         </h2>
 
         {timeline.authorsVisible ? (
-          <Badge tone="accent">Authors revealed</Badge>
+          <Badge tone="accent">{t('timeline.revealed')}</Badge>
         ) : (
           <Badge>
             <EyeOff size={12} aria-hidden="true" className="mr-1" />
-            Anonymous
+            {t('timeline.anonymous')}
           </Badge>
         )}
       </div>
@@ -112,7 +115,7 @@ export function TimelineScreen({ state }: { state: SessionStateDto }) {
         <Card className="mt-8 p-5">
           <h3 className="flex items-center gap-2 font-medium">
             <Trophy size={16} aria-hidden="true" />
-            Who read the room
+            {t('timeline.scores')}
           </h3>
 
           <ul className="mt-3 flex flex-col gap-1 text-sm">
@@ -142,12 +145,10 @@ export function TimelineScreen({ state }: { state: SessionStateDto }) {
               end.mutate();
             }}
           >
-            Move to the reveal vote
+            {t('timeline.toReveal')}
           </Button>
 
-          <p className="mt-2 text-sm text-[var(--color-ink-muted)]">
-            Everyone votes privately on whether to put names to the texts.
-          </p>
+          <p className="mt-2 text-sm text-[var(--color-ink-muted)]">{t('timeline.toRevealNote')}</p>
         </div>
       )}
     </div>
@@ -177,30 +178,36 @@ function TimelineCard({
   onReact: (answerId: string, emoji: string, on: boolean) => void;
   onGuess: (playerId: string) => void;
 }) {
+  const t = useT();
+
   return (
     <Card className="p-5">
       <p className="text-sm leading-relaxed whitespace-pre-wrap">{text.body}</p>
 
       <p className="mt-2 text-xs text-[var(--color-ink-muted)]">
-        {text.author === null ? 'Written anonymously' : `Written by ${text.author.username}`}
+        {text.author === null
+          ? t('timeline.writtenAnonymously')
+          : t('timeline.writtenBy', { name: text.author.username })}
       </p>
 
       <div className="mt-4 flex flex-col gap-4 border-l border-[var(--color-border)] pl-4">
         {text.answers.length === 0 && (
-          <p className="text-sm text-[var(--color-ink-muted)] italic">Nobody answered this one.</p>
+          <p className="text-sm text-[var(--color-ink-muted)] italic">
+            {t('timeline.noneAnswered')}
+          </p>
         )}
 
         {text.answers.map((answer) => (
           <div key={answer.id}>
             {answer.skipped ? (
               <p className="text-sm text-[var(--color-ink-muted)] italic">
-                No answer — this player ran out of time.
+                {t('timeline.noAnswer')}
               </p>
             ) : (
               <>
                 <p className="text-sm leading-relaxed whitespace-pre-wrap">{answer.body}</p>
                 <p className="mt-1 text-xs text-[var(--color-ink-muted)]">
-                  {answer.author === null ? 'Anonymous player' : answer.author.username}
+                  {answer.author === null ? t('timeline.anonymousPlayer') : answer.author.username}
                 </p>
               </>
             )}

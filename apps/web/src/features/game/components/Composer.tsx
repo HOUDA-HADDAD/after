@@ -2,6 +2,7 @@ import { useId, useRef, useState } from 'react';
 import { Button, cn } from '@aftergame/ui';
 import { Mic, MicOff } from 'lucide-react';
 import { TEXT_MAX_LENGTH } from '@aftergame/shared';
+import { useT } from '../../../shared/i18n/LocaleProvider.js';
 import { useAutosave } from '../hooks/useAutosave.js';
 import { useDictation } from '../hooks/useDictation.js';
 
@@ -39,6 +40,7 @@ export function Composer({
   onSaveDraft,
   onSubmit,
 }: ComposerProps) {
+  const t = useT();
   const id = useId();
   const [value, setValue] = useState(initialValue);
   const [warning, setWarning] = useState<string | null>(null);
@@ -59,7 +61,7 @@ export function Composer({
   const submit = (): void => {
     if (isEmpty) {
       // Refusing silently would leave the player pressing a dead button and guessing why.
-      setWarning('Write something first — it cannot be empty.');
+      setWarning(t('composer.empty'));
       textarea.current?.focus();
 
       return;
@@ -113,7 +115,7 @@ export function Composer({
             variant="ghost"
             size="sm"
             className="absolute right-2 bottom-2"
-            aria-label={dictation.listening ? 'Stop dictation' : 'Dictate'}
+            aria-label={dictation.listening ? t('composer.stopDictation') : t('composer.dictate')}
             aria-pressed={dictation.listening}
             onClick={dictation.listening ? dictation.stop : dictation.start}
           >
@@ -158,7 +160,7 @@ export function Composer({
 
       {dictation.listening && (
         <p role="status" className="mt-2 text-xs text-[var(--color-ink-muted)]">
-          Listening… speak, then edit anything it got wrong.
+          {t('composer.listening')}
         </p>
       )}
     </div>

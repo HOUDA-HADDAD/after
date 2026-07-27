@@ -6,10 +6,14 @@ import { Users } from 'lucide-react';
 import { Button, Card, EmptyState, Field, Skeleton } from '@aftergame/ui';
 import { createGroupSchema, joinByCodeSchema } from '@aftergame/shared';
 import { queryKeys } from '../../shared/api/queries.js';
-import { messageFor } from '../../shared/lib/error-copy.js';
+import { usePlural, useT } from '../../shared/i18n/LocaleProvider.js';
+import { useErrorMessage } from '../../shared/lib/error-copy.js';
 import { createGroup, joinGroup, listGroups } from './groups.api.js';
 
 export default function GroupsPage() {
+  const t = useT();
+  const plural = usePlural();
+  const messageFor = useErrorMessage();
   const queryClient = useQueryClient();
   const groups = useQuery({ queryKey: queryKeys.groups, queryFn: listGroups });
 
@@ -24,7 +28,7 @@ export default function GroupsPage() {
     mutationFn: createGroup,
     onSuccess: async (group) => {
       setName('');
-      toast.success(`Created ${group.name}`);
+      toast.success(t('rooms.created', { name: group.name }));
       await refreshGroups();
     },
     onError: (error: unknown) => {
@@ -36,7 +40,7 @@ export default function GroupsPage() {
     mutationFn: joinGroup,
     onSuccess: async (group) => {
       setCode('');
-      toast.success(`Joined ${group.name}`);
+      toast.success(t('rooms.joined', { name: group.name }));
       await refreshGroups();
     },
     onError: (error: unknown) => {
@@ -53,7 +57,7 @@ export default function GroupsPage() {
     const parsed = createGroupSchema.safeParse({ name });
 
     if (!parsed.success) {
-      setNameError(parsed.error.issues[0]?.message ?? 'Check the name');
+      setNameError(parsed.error.issues[0]?.message ?? t('rooms.checkName'));
       return;
     }
 
@@ -67,7 +71,7 @@ export default function GroupsPage() {
     const parsed = joinByCodeSchema.safeParse({ code });
 
     if (!parsed.success) {
-      setCodeError(parsed.error.issues[0]?.message ?? 'Check the code');
+      setCodeError(parsed.error.issues[0]?.message ?? t('rooms.checkCode'));
       return;
     }
 
@@ -76,7 +80,7 @@ export default function GroupsPage() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
-      <h1 className="text-xl font-semibold tracking-tight">Your groups</h1>
+      <h1 className="text-xl font-semibold tracking-tight">{t('rooms.title')}</h1>
 
       <section className="mt-4" aria-busy={groups.isPending}>
         {groups.isPending && (
@@ -90,7 +94,7 @@ export default function GroupsPage() {
           <Card className="p-5">
             <p className="text-sm text-[var(--color-ink-muted)]">{messageFor(groups.error)}</p>
             <Button className="mt-3" size="sm" onClick={() => void groups.refetch()}>
-              Try again
+              {t('shell.tryAgain')}
             </Button>
           </Card>
         )}
@@ -98,8 +102,8 @@ export default function GroupsPage() {
         {groups.data?.length === 0 && (
           <EmptyState
             icon={<Users size={28} aria-hidden="true" />}
-            title="No groups yet"
-            description="Create one and share the room code, or join a friend's with theirs."
+            title={t('rooms.emptyTitle')}
+            description={t('rooms.emptyBody')}
           />
         )}
 
@@ -114,8 +118,9 @@ export default function GroupsPage() {
                   <span className="min-w-0">
                     <span className="block truncate font-medium">{group.name}</span>
                     <span className="text-sm text-[var(--color-ink-muted)]">
-                      {group.memberCount} {group.memberCount === 1 ? 'member' : 'members'}
-                      {group.viewerRole !== 'MEMBER' && ` · ${group.viewerRole.toLowerCase()}`}
+                      {plural('room.membersOne', 'room.members', group.memberCount)}
+                      {group.viewerRole !== 'MEMBER' &&
+                        ` · ${t(`players.role.${group.viewerRole}`)}`}
                     </span>
                   </span>
                 </Link>
@@ -127,13 +132,13 @@ export default function GroupsPage() {
 
       <div className="mt-8 grid gap-4 sm:grid-cols-2">
         <Card className="p-5">
-          <h2 className="font-medium">Create a group</h2>
+          <h2 className="font-medium">{t('rooms.create')}</h2>
           <form onSubmit={submitCreate} noValidate className="mt-3">
             <Field
               id="group-name"
-              label="Group name"
+              label={t('rooms.name')}
               labelHidden
-              placeholder="Friday Night"
+              placeholder={t('rooms.namePlaceholder')}
               value={name}
               error={nameError}
               disabled={create.isPending}
@@ -142,17 +147,17 @@ export default function GroupsPage() {
               }}
             />
             <Button type="submit" variant="primary" pending={create.isPending} className="w-full">
-              Create
+              {t('rooms.createAction')}
             </Button>
           </form>
         </Card>
 
         <Card className="p-5">
-          <h2 className="font-medium">Join with a code</h2>
+          <h2 className="font-medium">{t('rooms.joinTitle')}</h2>
           <form onSubmit={submitJoin} noValidate className="mt-3">
             <Field
               id="room-code"
-              label="Room code"
+              label={t('rooms.codeLabel')}
               labelHidden
               placeholder="ABCD2345"
               autoComplete="off"
@@ -167,7 +172,7 @@ export default function GroupsPage() {
               }}
             />
             <Button type="submit" pending={join.isPending} className="w-full">
-              Join
+              {t('rooms.joinAction')}
             </Button>
           </form>
         </Card>

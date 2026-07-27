@@ -4,9 +4,12 @@ import { loginSchema } from '@aftergame/shared';
 import { useSession } from './SessionProvider.js';
 import { Button, ErrorText, Field } from '@aftergame/ui';
 import { AuthLayout } from './AuthLayout.js';
-import { fieldErrorsFor, messageFor } from '../../shared/lib/error-copy.js';
+import { useT } from '../../shared/i18n/LocaleProvider.js';
+import { fieldErrorsFor, useErrorMessage } from '../../shared/lib/error-copy.js';
 
 export default function LoginPage() {
+  const t = useT();
+  const messageFor = useErrorMessage();
   const { login } = useSession();
   const navigate = useNavigate();
   const location = useLocation();
@@ -52,13 +55,13 @@ export default function LoginPage() {
 
   return (
     <AuthLayout
-      title="Sign in"
-      subtitle="Welcome back."
+      title={t('auth.signInTitle')}
+      subtitle={t('auth.signInSubtitle')}
       footer={
         <>
-          No account yet?{' '}
+          {t('auth.noAccount')}{' '}
           <Link to="/register" className="text-[var(--color-accent)] underline underline-offset-2">
-            Create one
+            {t('auth.createOne')}
           </Link>
         </>
       }
@@ -70,7 +73,7 @@ export default function LoginPage() {
 
         <Field
           id="email"
-          label="Email"
+          label={t('auth.email')}
           type="email"
           value={email}
           onChange={(event) => {
@@ -83,7 +86,7 @@ export default function LoginPage() {
 
         <Field
           id="password"
-          label="Password"
+          label={t('auth.password')}
           type="password"
           value={password}
           onChange={(event) => {
@@ -95,7 +98,7 @@ export default function LoginPage() {
         />
 
         <Button type="submit" variant="primary" pending={pending} className="mt-2 w-full">
-          Sign in
+          {t('auth.signIn')}
         </Button>
       </form>
     </AuthLayout>

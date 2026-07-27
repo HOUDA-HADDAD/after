@@ -10,6 +10,7 @@ import {
   isPunishmentLevel,
   type PlayablePunishmentLevel,
 } from '@aftergame/game-core';
+import { usePlural, useT } from '../../shared/i18n/LocaleProvider.js';
 import { useSession } from '../auth/SessionProvider.js';
 import { cancelSession, joinSession, leaveSession, startSession } from './game.api.js';
 import { useGameAction } from './useGame.js';
@@ -56,6 +57,7 @@ export function LobbyScreen({
   group: GroupDetailDto | undefined;
   groupId: string;
 }) {
+  const t = useT();
   const navigate = useNavigate();
   const { state: session } = useSession();
   const viewerId = session.status === 'authenticated' ? session.user.id : '';
@@ -94,10 +96,13 @@ export function LobbyScreen({
       <section aria-labelledby="lobby-roster">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h2 id="lobby-roster" className="text-lg font-semibold tracking-tight">
-            Who is playing
+            {t('gameLobby.who')}
           </h2>
           <p className="text-sm text-[var(--color-ink-muted)]">
-            {playerCount} joined · {MIN_PLAYERS_PER_SESSION} needed to start
+            {t('gameLobby.joinedNeeded', {
+              joined: playerCount,
+              needed: MIN_PLAYERS_PER_SESSION,
+            })}
           </p>
         </div>
 
@@ -105,8 +110,8 @@ export function LobbyScreen({
           <div className="mt-3">
             <EmptyState
               icon={<Users size={28} aria-hidden="true" />}
-              title="Nobody has joined yet"
-              description="Share the room code — everyone in the group can see this game and join it."
+              title={t('gameLobby.nobody')}
+              description={t('gameLobby.nobodyBody')}
             />
           </div>
         ) : (
@@ -121,7 +126,9 @@ export function LobbyScreen({
                     <span className="block truncate font-medium">
                       {player.username}
                       {player.isYou && (
-                        <span className="ml-1.5 text-[var(--color-ink-muted)]">(you)</span>
+                        <span className="ml-1.5 text-[var(--color-ink-muted)]">
+                          ({t('players.you')})
+                        </span>
                       )}
                     </span>
 
@@ -131,7 +138,7 @@ export function LobbyScreen({
                     />
                   </span>
 
-                  {player.hasLeft && <Badge>Left</Badge>}
+                  {player.hasLeft && <Badge>{t('gameLobby.left')}</Badge>}
                 </li>
               ))}
             </ul>
@@ -146,20 +153,19 @@ export function LobbyScreen({
       */}
       {anyClamped && (
         <p className="mt-3 text-sm text-[var(--color-ink-muted)]">
-          With {playerCount} players there are not enough texts to hand out the full penalty, so it
-          is capped at {playerCount}. More players means a heavier penalty.
+          {t('gameLobby.clamped', { count: playerCount })}
         </p>
       )}
 
       {group !== undefined && loads.some((load) => load.blocked) && (
         <Card className="mt-4 p-4">
-          <h3 className="text-sm font-medium">Sitting this one out</h3>
+          <h3 className="text-sm font-medium">{t('gameLobby.sittingOut')}</h3>
           <ul className="mt-2 flex flex-col gap-1">
             {loads
               .filter((load) => load.blocked)
               .map((load) => (
                 <li key={load.username} className="text-sm text-[var(--color-ink-muted)]">
-                  {load.username} — blocked from games until a host forgives them
+                  {t('gameLobby.blockedLine', { name: load.username })}
                 </li>
               ))}
           </ul>
@@ -176,7 +182,7 @@ export function LobbyScreen({
             }}
           >
             <LogIn size={16} aria-hidden="true" />
-            Join the game
+            {t('gameLobby.join')}
           </Button>
         )}
 
@@ -191,7 +197,7 @@ export function LobbyScreen({
               }}
             >
               <Play size={16} aria-hidden="true" />
-              Start the game
+              {t('gameLobby.start')}
             </Button>
 
             <Button
@@ -204,7 +210,7 @@ export function LobbyScreen({
               }}
             >
               <X size={16} aria-hidden="true" />
-              Cancel game
+              {t('gameLobby.cancel')}
             </Button>
           </>
         )}
@@ -218,23 +224,20 @@ export function LobbyScreen({
               });
             }}
           >
-            Leave the game
+            {t('gameLobby.leave')}
           </Button>
         )}
       </div>
 
       {state.you?.isHost === true && !enoughPlayers && (
         <p className="mt-2 text-sm text-[var(--color-ink-muted)]">
-          You need at least {MIN_PLAYERS_PER_SESSION} players to start.
+          {t('gameLobby.needPlayers', { count: MIN_PLAYERS_PER_SESSION })}
         </p>
       )}
 
       {youAreBlocked && (
         <Card className="mt-4 p-4">
-          <p className="text-sm">
-            You cannot join games in this group until a host forgives you. Everything else in the
-            group still works.
-          </p>
+          <p className="text-sm">{t('gameLobby.youAreBlocked')}</p>
         </Card>
       )}
     </div>
@@ -243,12 +246,18 @@ export function LobbyScreen({
 
 /** "Answers 2 texts · 1 punishment" — the rule, spelled out rather than implied. */
 function LoadLine({ username, load }: { username: string; load: LoadPreview | undefined }) {
+  const t = useT();
+  const plural = usePlural();
+
   if (load === undefined) return null;
 
   return (
     <span className="text-xs text-[var(--color-ink-muted)]">
-      {username} answers {load.answers} {load.answers === 1 ? 'text' : 'texts'}
-      {load.level > 0 && ` · ${String(load.level)} punishment${load.level === 1 ? '' : 's'}`}
+      {load.answers === 1
+        ? t('gameLobby.loadLineOne', { name: username })
+        : t('gameLobby.loadLine', { name: username, count: load.answers })}
+      {load.level > 0 &&
+        ` · ${plural('players.punishmentsOne', 'players.punishments', load.level)}`}
     </span>
   );
 }

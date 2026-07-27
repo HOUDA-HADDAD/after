@@ -4,6 +4,7 @@ import { Plus } from 'lucide-react';
 import { Skeleton, cn } from '@aftergame/ui';
 import { listGroups } from '../../features/groups/groups.api.js';
 import { queryKeys } from '../api/queries.js';
+import { useT } from '../i18n/LocaleProvider.js';
 
 /** Two letters is enough to recognise a group you are already in, and fits the rail. */
 const initials = (name: string): string =>
@@ -27,6 +28,7 @@ export function GroupRail({
   activeGroupId: string | undefined;
   onNavigate: () => void;
 }) {
+  const t = useT();
   const groups = useQuery({ queryKey: queryKeys.groups, queryFn: listGroups });
 
   return (
@@ -59,11 +61,11 @@ export function GroupRail({
       <NavLink
         to="/"
         onClick={onNavigate}
-        title="Your groups"
+        title={t('rooms.title')}
         className="flex h-11 w-11 items-center justify-center rounded-[var(--radius-card)] text-[var(--color-rail-ink)] transition-colors hover:bg-[var(--color-rail-active)]"
       >
         <Plus size={18} aria-hidden="true" />
-        <span className="sr-only">All groups, create or join</span>
+        <span className="sr-only">{t('shell.allRooms')}</span>
       </NavLink>
     </div>
   );

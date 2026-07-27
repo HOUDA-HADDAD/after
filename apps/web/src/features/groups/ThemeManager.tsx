@@ -11,7 +11,7 @@ import {
 } from '@aftergame/shared';
 import { queryKeys } from '../../shared/api/queries.js';
 import { usePlural, useT } from '../../shared/i18n/LocaleProvider.js';
-import { messageFor, fieldErrorsFor } from '../../shared/lib/error-copy.js';
+import { fieldErrorsFor, useErrorMessage } from '../../shared/lib/error-copy.js';
 import {
   createCustomTheme,
   deleteCustomTheme,
@@ -43,6 +43,7 @@ const BLANK: GroupThemeInput = {
 export function ThemeManager({ groupId, canManage }: { groupId: string; canManage: boolean }) {
   const t = useT();
   const plural = usePlural();
+  const messageFor = useErrorMessage();
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState<GroupThemeDto | 'new' | null>(null);
 
@@ -211,6 +212,7 @@ function ThemeForm({
   );
 
   const t = useT();
+  const messageFor = useErrorMessage();
 
   const save = useMutation({
     mutationFn: (input: GroupThemeInput) =>

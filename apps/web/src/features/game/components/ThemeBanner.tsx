@@ -1,16 +1,13 @@
 import type { SessionPhaseDto, SessionThemeDto } from '@aftergame/shared';
 import { Badge } from '@aftergame/ui';
+import { useT } from '../../../shared/i18n/LocaleProvider.js';
 
-const PHASE_LABEL: Record<SessionPhaseDto, string> = {
-  LOBBY: 'Lobby',
-  WRITING: 'Writing',
-  ANSWERING: 'Answering',
-  REVIEW: 'Discussion',
-  REVEAL: 'Reveal',
-  COMPLETED: 'Finished',
-  CANCELLED: 'Cancelled',
-  ABANDONED: 'Abandoned',
-};
+/** The phase, as a translation key. `usePhaseLabel` turns it into words. */
+export function usePhaseLabel(): (phase: SessionPhaseDto) => string {
+  const t = useT();
+
+  return (phase) => t(`phase.${phase}`);
+}
 
 /**
  * The theme, pinned for the whole game.
@@ -28,6 +25,7 @@ export function ThemeBanner({
   phase: SessionPhaseDto;
   children?: React.ReactNode;
 }) {
+  const phaseLabel = usePhaseLabel();
   return (
     <div className="sticky top-0 z-10 border-b border-[var(--color-border)] bg-[var(--color-surface)]/95 backdrop-blur">
       <div className="mx-auto flex max-w-3xl flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 sm:px-6">
@@ -37,7 +35,7 @@ export function ThemeBanner({
 
         <h1 className="text-base font-semibold tracking-tight">{theme.name}</h1>
 
-        <Badge tone="accent">{PHASE_LABEL[phase]}</Badge>
+        <Badge tone="accent">{phaseLabel(phase)}</Badge>
 
         <p className="w-full text-sm text-[var(--color-ink-muted)] sm:w-auto sm:flex-1">
           {theme.description}
@@ -48,5 +46,3 @@ export function ThemeBanner({
     </div>
   );
 }
-
-export { PHASE_LABEL };

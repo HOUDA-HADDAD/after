@@ -1,10 +1,20 @@
 import { Languages } from 'lucide-react';
 import { cn } from '@aftergame/ui';
 import { useLocale } from '../i18n/LocaleProvider.js';
-import { LOCALES, type Locale } from '../i18n/translations.js';
+import { LOCALES, type Locale, type TranslationKey } from '../i18n/translations.js';
 
-const LABEL: Record<Locale, string> = { en: 'English', fr: 'Français' };
-const SHORT: Record<Locale, string> = { en: 'EN', fr: 'FR' };
+/**
+ * A language's own name, from the dictionary rather than a map here.
+ *
+ * These read the same in every locale by design — a language is named in the language it names,
+ * so a French reader looking for their own is looking for "Français", not "French". Keeping them
+ * in the dictionary anyway means one place to edit when a locale is added, and one place the
+ * translation guard can see.
+ */
+const NAME_KEY = { en: 'language.en', fr: 'language.fr' } as const satisfies Record<
+  Locale,
+  TranslationKey
+>;
 
 /**
  * The language switcher.
@@ -39,13 +49,13 @@ export function LanguageMenu({ className }: { className?: string }) {
       >
         {LOCALES.map((code) => (
           <option key={code} value={code}>
-            {SHORT[code]}
+            {code.toUpperCase()}
           </option>
         ))}
       </select>
 
       {/* The full name for anyone reading the options aloud; the chip itself stays two letters. */}
-      <span className="sr-only">{LABEL[locale]}</span>
+      <span className="sr-only">{t(NAME_KEY[locale])}</span>
     </div>
   );
 }

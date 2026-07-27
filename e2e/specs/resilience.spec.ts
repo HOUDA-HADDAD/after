@@ -183,7 +183,7 @@ test.describe('a game that is gone', () => {
       ).toBeVisible();
       await expect(sarah.page.getByText(/that was the deal when you played it/i)).toBeVisible();
 
-      await sarah.page.getByRole('button', { name: /back to the group/i }).click();
+      await sarah.page.getByRole('button', { name: /back to the room/i }).click();
       await expect(sarah.page.getByRole('heading', { name: 'Friday Night' })).toBeVisible();
     } finally {
       await closeAll([sarah]);

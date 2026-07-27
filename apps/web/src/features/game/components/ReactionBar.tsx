@@ -1,5 +1,6 @@
 import { REACTIONS, type ReactionTallyDto } from '@aftergame/shared';
 import { cn } from '@aftergame/ui';
+import { useT } from '../../../shared/i18n/LocaleProvider.js';
 
 /**
  * Reactions on an answer (D20).
@@ -23,6 +24,7 @@ export function ReactionBar({
   pending: boolean;
   onToggle: (emoji: string, on: boolean) => void;
 }) {
+  const t = useT();
   const byEmoji = new Map(reactions.map((tally) => [tally.emoji, tally]));
   const anyReactions = reactions.some((tally) => tally.count > 0);
 
@@ -38,8 +40,10 @@ export function ReactionBar({
         const mine = tally?.youReacted ?? false;
 
         const label = mine
-          ? `Remove your ${emoji} reaction`
-          : `React with ${emoji}${count > 0 ? `, ${String(count)} so far` : ''}`;
+          ? t('reactions.remove', { emoji })
+          : count > 0
+            ? t('reactions.reactCount', { emoji, count })
+            : t('reactions.react', { emoji });
 
         return (
           <button

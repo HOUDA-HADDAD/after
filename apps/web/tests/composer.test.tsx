@@ -3,18 +3,22 @@ import { render, screen, waitFor, act, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event';
 import { TEXT_MAX_LENGTH } from '@aftergame/shared';
 import { Composer } from '../src/features/game/components/Composer.js';
+import { LocaleProvider } from '../src/shared/i18n/LocaleProvider.js';
 
 const noop = (): void => undefined;
 
+/** The composer reads its own copy now, so it needs the locale its host would have given it. */
 function renderComposer(props: Partial<Parameters<typeof Composer>[0]> = {}) {
   return render(
-    <Composer
-      label="Write your anecdote"
-      submitLabel="Submit my text"
-      onSaveDraft={noop}
-      onSubmit={noop}
-      {...props}
-    />,
+    <LocaleProvider>
+      <Composer
+        label="Write your anecdote"
+        submitLabel="Submit my text"
+        onSaveDraft={noop}
+        onSubmit={noop}
+        {...props}
+      />
+    </LocaleProvider>,
   );
 }
 
@@ -156,12 +160,14 @@ describe('the composer', () => {
 
       // An unrelated re-render — a socket event, a sibling update — must not fire a second save.
       rerender(
-        <Composer
-          label="Write your anecdote"
-          submitLabel="Submit my text"
-          onSaveDraft={onSaveDraft}
-          onSubmit={noop}
-        />,
+        <LocaleProvider>
+          <Composer
+            label="Write your anecdote"
+            submitLabel="Submit my text"
+            onSaveDraft={onSaveDraft}
+            onSubmit={noop}
+          />
+        </LocaleProvider>,
       );
       act(() => {
         vi.advanceTimersByTime(2000);

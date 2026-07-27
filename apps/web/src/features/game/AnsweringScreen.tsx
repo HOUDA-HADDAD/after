@@ -1,6 +1,7 @@
 import { Button, Card } from '@aftergame/ui';
 import { Check, FastForward } from 'lucide-react';
 import type { AssignmentDto, SessionStateDto } from '@aftergame/shared';
+import { useT } from '../../shared/i18n/LocaleProvider.js';
 import { Composer } from './components/Composer.js';
 import { PhaseProgress } from './components/PhaseProgress.js';
 import { advanceSession, saveAnswer, submitAnswer } from './game.api.js';
@@ -16,6 +17,7 @@ import { useGameAction } from './useGame.js';
  * triplicate.
  */
 export function AnsweringScreen({ state }: { state: SessionStateDto }) {
+  const t = useT();
   const viewer = state.you;
   const assignments = viewer?.assignments ?? [];
   const outstanding = assignments.filter((assignment) => !assignment.submitted).length;
@@ -24,18 +26,17 @@ export function AnsweringScreen({ state }: { state: SessionStateDto }) {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6">
-      <PhaseProgress progress={state.progress} noun="answers" />
+      <PhaseProgress progress={state.progress} counting="answers" />
 
       {viewer === null && (
         <Card className="mt-6 p-5">
-          <p className="text-sm">You are watching this game rather than playing it.</p>
+          <p className="text-sm">{t('game.watching')}</p>
         </Card>
       )}
 
       {assignments.length > 1 && (
         <p className="mt-4 text-sm text-[var(--color-ink-muted)]">
-          You have {assignments.length} texts to answer — that is your punishment load for this
-          game.
+          {t('answering.load', { count: assignments.length })}
         </p>
       )}
 
@@ -56,11 +57,9 @@ export function AnsweringScreen({ state }: { state: SessionStateDto }) {
         <Card className="mt-6 p-5">
           <p className="flex items-center gap-2 font-medium">
             <Check size={18} aria-hidden="true" className="text-[var(--color-success)]" />
-            You are done
+            {t('answering.done')}
           </p>
-          <p className="mt-2 text-sm text-[var(--color-ink-muted)]">
-            When everyone has answered, the whole table reads the results together.
-          </p>
+          <p className="mt-2 text-sm text-[var(--color-ink-muted)]">{t('answering.doneBody')}</p>
         </Card>
       )}
 
@@ -73,11 +72,9 @@ export function AnsweringScreen({ state }: { state: SessionStateDto }) {
             }}
           >
             <FastForward size={16} aria-hidden="true" />
-            Move on to the results
+            {t('answering.moveOn')}
           </Button>
-          <p className="mt-2 text-sm text-[var(--color-ink-muted)]">
-            Unanswered texts show as “no answer” rather than holding the game up.
-          </p>
+          <p className="mt-2 text-sm text-[var(--color-ink-muted)]">{t('answering.moveOnNote')}</p>
         </div>
       )}
     </div>
@@ -97,6 +94,7 @@ function AssignmentCard({
   total: number;
   prompt: string;
 }) {
+  const t = useT();
   const save = useGameAction(sessionId, (body: string) =>
     saveAnswer(sessionId, assignment.assignmentId, body),
   );
@@ -107,7 +105,7 @@ function AssignmentCard({
   return (
     <Card className="p-5">
       <p className="text-xs font-medium tracking-wide text-[var(--color-ink-muted)] uppercase">
-        {total === 1 ? 'Your text' : `Text ${String(index + 1)} of ${String(total)}`}
+        {total === 1 ? t('answering.yourText') : t('answering.textOf', { index: index + 1, total })}
       </p>
 
       {/* Somebody wrote this. Which somebody is not on this screen and never was. */}
@@ -120,7 +118,7 @@ function AssignmentCard({
           <div>
             <p className="flex items-center gap-2 text-sm font-medium">
               <Check size={16} aria-hidden="true" className="text-[var(--color-success)]" />
-              Answered
+              {t('answering.answered')}
             </p>
             <p className="mt-2 text-sm whitespace-pre-wrap text-[var(--color-ink-muted)]">
               {assignment.answerBody}
@@ -130,7 +128,7 @@ function AssignmentCard({
           <Composer
             label={prompt}
             initialValue={assignment.answerBody}
-            submitLabel="Submit answer"
+            submitLabel={t('answering.submit')}
             pending={submit.isPending}
             onSaveDraft={(body) => {
               save.mutate(body);

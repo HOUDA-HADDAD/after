@@ -368,7 +368,7 @@ describe('the reveal', () => {
 
     // The inference follows from the rule itself, so the honest move is to say so while it can
     // still change what someone chooses.
-    expect(await screen.findByText(/identifies them outright/i)).toBeInTheDocument();
+    expect(await screen.findByText(/identifies whoever refused outright/i)).toBeInTheDocument();
   });
 
   it('does not warn a game large enough for the vote to stay private', async () => {
@@ -413,7 +413,7 @@ describe('the reveal', () => {
     renderGame();
     await gameLoaded();
 
-    expect(await screen.findByText(/the group chose to stay anonymous/i)).toBeInTheDocument();
+    expect(await screen.findByText(/the room chose to stay anonymous/i)).toBeInTheDocument();
     expect(screen.getByText(/nobody is told who wanted what/i)).toBeInTheDocument();
     expect(screen.queryByText(/refused|blocked it|vetoed/i)).not.toBeInTheDocument();
   });
@@ -502,7 +502,7 @@ describe('the game on a phone', () => {
 
     // The main panel takes the full width below `md`; the game is the screen.
     expect(await screen.findByText(/toaster/)).toBeInTheDocument();
-    expect(screen.queryByRole('navigation', { name: 'Groups' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('navigation', { name: 'Rooms' })).not.toBeInTheDocument();
   });
 });
 

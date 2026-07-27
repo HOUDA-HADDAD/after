@@ -1,4 +1,5 @@
 import type { ProgressDto } from '@aftergame/shared';
+import { useT } from '../../../shared/i18n/LocaleProvider.js';
 
 /**
  * How far the room has got — and nothing else.
@@ -8,7 +9,15 @@ import type { ProgressDto } from '@aftergame/shared';
  * next. It is a `progressbar` so assistive technology gets the same information, and the visible
  * label is the accessible one rather than a second, different sentence.
  */
-export function PhaseProgress({ progress, noun }: { progress: ProgressDto; noun: string }) {
+export function PhaseProgress({
+  progress,
+  counting,
+}: {
+  progress: ProgressDto;
+  /** Which noun the counter uses — the phase decides, and the translation owns the wording. */
+  counting: 'texts' | 'answers';
+}) {
+  const t = useT();
   const { submitted, required } = progress;
   const percent = required === 0 ? 0 : Math.round((submitted / required) * 100);
 
@@ -19,7 +28,10 @@ export function PhaseProgress({ progress, noun }: { progress: ProgressDto; noun:
         aria-valuenow={submitted}
         aria-valuemin={0}
         aria-valuemax={required}
-        aria-label={`${String(submitted)} of ${String(required)} ${noun} in`}
+        aria-label={t(counting === 'texts' ? 'progress.textsLabel' : 'progress.answersLabel', {
+          submitted,
+          required,
+        })}
         className="h-1.5 overflow-hidden rounded-full bg-[var(--color-surface-sunken)]"
       >
         <div
@@ -29,7 +41,7 @@ export function PhaseProgress({ progress, noun }: { progress: ProgressDto; noun:
       </div>
 
       <p className="mt-1.5 text-sm text-[var(--color-ink-muted)] tabular-nums">
-        {submitted} / {required} {noun} in
+        {t(counting === 'texts' ? 'progress.texts' : 'progress.answers', { submitted, required })}
       </p>
     </div>
   );

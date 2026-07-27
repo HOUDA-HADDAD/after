@@ -111,7 +111,7 @@ test.describe('every screen, in both themes', () => {
         /* ---- signed in ------------------------------------------------------------------ */
 
         await sarah.page.goto('/');
-        await expect(sarah.page.getByRole('heading', { name: 'Your groups' })).toBeVisible();
+        await expect(sarah.page.getByRole('heading', { name: 'Your rooms' })).toBeVisible();
         await audit(sarah.page, `groups (${theme})`);
 
         await sarah.page.goto(`/groups/${groupId}`);

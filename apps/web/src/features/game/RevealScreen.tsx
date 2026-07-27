@@ -1,6 +1,7 @@
 import { Button, Card } from '@aftergame/ui';
 import { Eye, EyeOff, Lock } from 'lucide-react';
 import type { SessionStateDto } from '@aftergame/shared';
+import { useT } from '../../shared/i18n/LocaleProvider.js';
 import { castRevealVote, closeVoting } from './game.api.js';
 import { useGameAction } from './useGame.js';
 
@@ -21,6 +22,7 @@ import { useGameAction } from './useGame.js';
  *     still change what someone chooses.
  */
 export function RevealScreen({ state }: { state: SessionStateDto }) {
+  const t = useT();
   const viewer = state.you;
   const reveal = state.reveal;
 
@@ -34,35 +36,29 @@ export function RevealScreen({ state }: { state: SessionStateDto }) {
   return (
     <div className="mx-auto max-w-2xl px-4 py-8 sm:px-6">
       <Card className="p-6">
-        <h2 className="text-lg font-semibold tracking-tight">Should we reveal who wrote what?</h2>
+        <h2 className="text-lg font-semibold tracking-tight">{t('reveal.question')}</h2>
 
         <ul className="mt-4 flex flex-col gap-2 text-sm text-[var(--color-ink-muted)]">
           <li className="flex gap-2">
             <Lock size={16} aria-hidden="true" className="mt-0.5 shrink-0" />
-            Your choice is private. Nobody — including the host — is ever told how you voted.
+            {t('reveal.private')}
           </li>
           <li className="flex gap-2">
             <EyeOff size={16} aria-hidden="true" className="mt-0.5 shrink-0" />
-            Authors are revealed only if <strong className="font-medium">everyone</strong> agrees.
-            One person saying no keeps the whole game anonymous, and not voting counts as no.
+            {t('reveal.unanimous')}
           </li>
         </ul>
 
         {smallGame && (
           <p className="mt-4 rounded-[var(--radius-control)] bg-[var(--color-warning-subtle)] p-3 text-sm">
-            Worth knowing before you choose: in a game this small, a failed reveal narrows down who
-            refused
-            {participants === 2 ? ' — with two players, it identifies them outright' : ''}. That
-            follows from the rule itself, so we would rather say it than pretend otherwise.
+            {participants === 2 ? t('reveal.twoPlayers') : t('reveal.smallGame')}
           </p>
         )}
 
         {viewer === null ? (
-          <p className="mt-6 text-sm">Only the players of this game get a vote.</p>
+          <p className="mt-6 text-sm">{t('reveal.onlyPlayers')}</p>
         ) : alreadyVoted ? (
-          <p className="mt-6 text-sm font-medium">
-            Your vote is in. What you chose stays between you and the database.
-          </p>
+          <p className="mt-6 text-sm font-medium">{t('reveal.voted')}</p>
         ) : (
           <div className="mt-6 flex flex-wrap gap-2">
             <Button
@@ -73,7 +69,7 @@ export function RevealScreen({ state }: { state: SessionStateDto }) {
               }}
             >
               <Eye size={16} aria-hidden="true" />
-              Reveal the authors
+              {t('reveal.yes')}
             </Button>
 
             <Button
@@ -83,7 +79,7 @@ export function RevealScreen({ state }: { state: SessionStateDto }) {
               }}
             >
               <EyeOff size={16} aria-hidden="true" />
-              Keep us anonymous
+              {t('reveal.no')}
             </Button>
           </div>
         )}
@@ -92,7 +88,7 @@ export function RevealScreen({ state }: { state: SessionStateDto }) {
           <div className="mt-6 border-t border-[var(--color-border)] pt-4">
             {/* `decided / total`, and never the split — see D8a. */}
             <p className="text-sm text-[var(--color-ink-muted)] tabular-nums">
-              {reveal.decided} of {reveal.total} have decided.
+              {t('reveal.decided', { decided: reveal.decided, total: reveal.total })}
             </p>
           </div>
         )}
@@ -106,11 +102,9 @@ export function RevealScreen({ state }: { state: SessionStateDto }) {
                 close.mutate();
               }}
             >
-              Close the vote now
+              {t('reveal.close')}
             </Button>
-            <p className="mt-1.5 text-xs text-[var(--color-ink-muted)]">
-              Anyone who has not voted counts as a no.
-            </p>
+            <p className="mt-1.5 text-xs text-[var(--color-ink-muted)]">{t('reveal.closeNote')}</p>
           </div>
         )}
       </Card>
@@ -126,6 +120,8 @@ export function RevealScreen({ state }: { state: SessionStateDto }) {
  * whoever refused.
  */
 export function RevealOutcome({ state }: { state: SessionStateDto }) {
+  const t = useT();
+
   if (state.reveal === null || !state.reveal.closed) return null;
 
   return (
@@ -133,17 +129,15 @@ export function RevealOutcome({ state }: { state: SessionStateDto }) {
       {state.reveal.revealed ? (
         <p className="flex items-center gap-2 text-sm font-medium">
           <Eye size={16} aria-hidden="true" />
-          Everyone agreed — the names are on the texts below.
+          {t('reveal.agreed')}
         </p>
       ) : (
         <>
           <p className="flex items-center gap-2 text-sm font-medium">
             <EyeOff size={16} aria-hidden="true" />
-            The group chose to stay anonymous.
+            {t('reveal.stayed')}
           </p>
-          <p className="mt-1.5 text-sm text-[var(--color-ink-muted)]">
-            Nobody is told who wanted what. The stories stay exactly as you read them.
-          </p>
+          <p className="mt-1.5 text-sm text-[var(--color-ink-muted)]">{t('reveal.stayedNote')}</p>
         </>
       )}
     </Card>

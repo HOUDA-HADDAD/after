@@ -2,6 +2,7 @@ import { useId, useState } from 'react';
 import { Button, cn } from '@aftergame/ui';
 import { MessageCircle } from 'lucide-react';
 import { COMMENT_MAX_LENGTH, type TimelineCommentDto } from '@aftergame/shared';
+import { useT } from '../../../shared/i18n/LocaleProvider.js';
 
 /**
  * Comments under one answer.
@@ -26,6 +27,7 @@ export function CommentThread({
   pending: boolean;
   onPost: (body: string, isAnonymous: boolean) => void;
 }) {
+  const t = useT();
   const id = useId();
   const [body, setBody] = useState('');
   const [anonymous, setAnonymous] = useState(true);
@@ -55,7 +57,7 @@ export function CommentThread({
                     comment.author === null && 'text-[var(--color-ink-muted)] italic',
                   )}
                 >
-                  {comment.author?.username ?? 'Anonymous'}
+                  {comment.author?.username ?? t('comments.anonymous')}
                 </span>{' '}
                 <span className="text-[var(--color-ink-muted)]">— {comment.body}</span>
               </p>
@@ -67,7 +69,7 @@ export function CommentThread({
       {canComment && (
         <div className="mt-3">
           <label htmlFor={`${id}-body`} className="sr-only">
-            Add a comment
+            {t('comments.add')}
           </label>
 
           <div className="flex gap-2">
@@ -81,20 +83,20 @@ export function CommentThread({
                 if (event.key === 'Enter') post();
               }}
               maxLength={COMMENT_MAX_LENGTH}
-              placeholder="Say something…"
+              placeholder={t('comments.placeholder')}
               className="h-11 min-w-0 flex-1 rounded-[var(--radius-control)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm outline-none focus-visible:border-[var(--color-accent)]"
             />
 
             <Button variant="primary" pending={pending} onClick={post}>
-              Post
+              {t('comments.post')}
             </Button>
           </div>
 
           <fieldset className="mt-2">
-            <legend className="sr-only">Post this comment as</legend>
+            <legend className="sr-only">{t('comments.as')}</legend>
 
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
-              <span className="text-xs text-[var(--color-ink-muted)]">Comment as</span>
+              <span className="text-xs text-[var(--color-ink-muted)]">{t('comments.asShort')}</span>
 
               <label className="flex items-center gap-1.5">
                 <input
@@ -105,7 +107,7 @@ export function CommentThread({
                     setAnonymous(true);
                   }}
                 />
-                Anonymous
+                {t('comments.anonymous')}
               </label>
 
               <label className="flex items-center gap-1.5">
@@ -123,8 +125,7 @@ export function CommentThread({
 
             {anonymous && (
               <p className="mt-1 text-xs text-[var(--color-ink-muted)]">
-                Anonymous is permanent — this one stays unsigned even if the group reveals authors
-                at the end.
+                {t('comments.anonymousNote')}
               </p>
             )}
           </fieldset>

@@ -9,6 +9,7 @@ import { GroupRail } from './GroupRail.js';
 import { GroupSidebar } from './GroupSidebar.js';
 import { DESKTOP_QUERY, useMediaQuery } from '../hooks/useMediaQuery.js';
 import { LanguageMenu } from './LanguageMenu.js';
+import { useT } from '../i18n/LocaleProvider.js';
 
 /**
  * The application shell.
@@ -18,6 +19,7 @@ import { LanguageMenu } from './LanguageMenu.js';
  * the full width, because on a phone the game *is* the screen.
  */
 export function AppShell({ children }: { children: ReactNode }) {
+  const t = useT();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const { groupId } = useParams();
   const isDesktop = useMediaQuery(DESKTOP_QUERY);
@@ -80,7 +82,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           href="#main"
           className="sr-only rounded-[var(--radius-control)] bg-[var(--color-accent)] px-4 py-2 text-[var(--color-accent-ink)] focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50"
         >
-          Skip to content
+          {t('shell.skipToContent')}
         </a>
 
         <TopBar
@@ -96,7 +98,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               the drawer. Rendering both and hiding one with CSS leaves a second copy of every
               link in the DOM — invisible to a browser, but not to a focus trap or an audit. */}
           {isDesktop && (
-            <nav aria-label="Groups" className="flex">
+            <nav aria-label={t('shell.rooms')} className="flex">
               {navigation}
             </nav>
           )}
@@ -115,8 +117,13 @@ export function AppShell({ children }: { children: ReactNode }) {
       </div>
 
       {!isDesktop && (
-        <Drawer open={drawerVisible} onOpenChange={setDrawerOpen} title="Groups">
-          <nav aria-label="Groups">{navigation}</nav>
+        <Drawer
+          open={drawerVisible}
+          onOpenChange={setDrawerOpen}
+          title={t('shell.rooms')}
+          closeLabel={t('shell.closeNavigation')}
+        >
+          <nav aria-label={t('shell.rooms')}>{navigation}</nav>
         </Drawer>
       )}
     </>
@@ -132,6 +139,7 @@ function TopBar({
   showNavigationButton: boolean;
   onOpenNavigation: () => void;
 }) {
+  const t = useT();
   const { state, logout } = useSession();
   const { theme, toggle } = useTheme();
   const { connection } = useSocket();
@@ -144,7 +152,7 @@ function TopBar({
             ref={triggerRef}
             type="button"
             onClick={onOpenNavigation}
-            aria-label="Open navigation"
+            aria-label={t('shell.openNavigation')}
             className="rounded-[var(--radius-control)] p-2 hover:bg-[var(--color-surface-sunken)]"
           >
             <Menu size={20} aria-hidden="true" />
@@ -171,7 +179,7 @@ function TopBar({
           variant="ghost"
           size="sm"
           onClick={toggle}
-          aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+          aria-label={theme === 'dark' ? t('shell.toLight') : t('shell.toDark')}
         >
           {theme === 'dark' ? (
             <Sun size={16} aria-hidden="true" />
@@ -180,7 +188,12 @@ function TopBar({
           )}
         </Button>
 
-        <Button variant="ghost" size="sm" onClick={() => void logout()} aria-label="Sign out">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => void logout()}
+          aria-label={t('shell.signOut')}
+        >
           <LogOut size={16} aria-hidden="true" />
         </Button>
       </div>
@@ -195,6 +208,8 @@ function TopBar({
  * connection is not live, which is the one time it tells the user something they can act on.
  */
 function ConnectionBadge({ connection }: { connection: 'connecting' | 'live' | 'offline' }) {
+  const t = useT();
+
   if (connection === 'live') return null;
 
   return (
@@ -202,7 +217,7 @@ function ConnectionBadge({ connection }: { connection: 'connecting' | 'live' | '
       role="status"
       className="rounded-full border border-[var(--color-border)] px-2 py-0.5 text-xs text-[var(--color-ink-muted)]"
     >
-      {connection === 'connecting' ? 'Connecting…' : 'Reconnecting…'}
+      {connection === 'connecting' ? t('shell.connecting') : t('shell.reconnecting')}
     </span>
   );
 }

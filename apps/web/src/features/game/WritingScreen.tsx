@@ -1,6 +1,7 @@
 import { Button, Card } from '@aftergame/ui';
 import { Check, FastForward } from 'lucide-react';
 import type { SessionStateDto } from '@aftergame/shared';
+import { useT } from '../../shared/i18n/LocaleProvider.js';
 import { Composer } from './components/Composer.js';
 import { PhaseProgress } from './components/PhaseProgress.js';
 import { advanceSession, saveText, submitText } from './game.api.js';
@@ -14,6 +15,7 @@ import { useGameAction } from './useGame.js';
  * counter is both what the brief asks for and the most the anonymity model can safely say.
  */
 export function WritingScreen({ state }: { state: SessionStateDto }) {
+  const t = useT();
   const viewer = state.you;
 
   const save = useGameAction(state.id, (body: string) => saveText(state.id, body));
@@ -22,13 +24,11 @@ export function WritingScreen({ state }: { state: SessionStateDto }) {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6">
-      <PhaseProgress progress={state.progress} noun="texts" />
+      <PhaseProgress progress={state.progress} counting="texts" />
 
       {viewer === null && (
         <Card className="mt-6 p-5">
-          <p className="text-sm">
-            You are watching this game rather than playing it — the roster locked when it started.
-          </p>
+          <p className="text-sm">{t('game.watchingLocked')}</p>
         </Card>
       )}
 
@@ -38,7 +38,7 @@ export function WritingScreen({ state }: { state: SessionStateDto }) {
             label={state.theme.writePrompt}
             placeholder={state.theme.writePlaceholder}
             initialValue={viewer.draftText}
-            submitLabel="Submit my text"
+            submitLabel={t('writing.submit')}
             pending={submit.isPending}
             onSaveDraft={(body) => {
               save.mutate(body);
@@ -48,10 +48,7 @@ export function WritingScreen({ state }: { state: SessionStateDto }) {
             }}
           />
 
-          <p className="mt-3 text-sm text-[var(--color-ink-muted)]">
-            Nobody sees your name next to this — not the host, not now, not later unless the whole
-            group agrees at the end.
-          </p>
+          <p className="mt-3 text-sm text-[var(--color-ink-muted)]">{t('writing.anonymousNote')}</p>
         </div>
       )}
 
@@ -59,14 +56,14 @@ export function WritingScreen({ state }: { state: SessionStateDto }) {
         <Card className="mt-6 p-5">
           <p className="flex items-center gap-2 font-medium">
             <Check size={18} aria-hidden="true" className="text-[var(--color-success)]" />
-            Your text is in
+            {t('writing.done')}
           </p>
 
           {/* What happens next, rather than who is holding it up. */}
           <ol className="mt-3 flex list-inside list-decimal flex-col gap-1 text-sm text-[var(--color-ink-muted)]">
-            <li>Everyone finishes writing.</li>
-            <li>The texts are shuffled and dealt out — never back to whoever wrote them.</li>
-            <li>You answer whatever you are dealt, still anonymously.</li>
+            <li>{t('writing.next1')}</li>
+            <li>{t('writing.next2')}</li>
+            <li>{t('writing.next3')}</li>
           </ol>
         </Card>
       )}
@@ -80,13 +77,11 @@ export function WritingScreen({ state }: { state: SessionStateDto }) {
             }}
           >
             <FastForward size={16} aria-hidden="true" />
-            Deal the texts now
+            {t('writing.deal')}
           </Button>
 
           {/* D14: the host can always move the game forward, so one absent player cannot end it. */}
-          <p className="mt-2 text-sm text-[var(--color-ink-muted)]">
-            Anyone who has not written by then simply has no text in the pile.
-          </p>
+          <p className="mt-2 text-sm text-[var(--color-ink-muted)]">{t('writing.dealNote')}</p>
         </div>
       )}
     </div>

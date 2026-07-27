@@ -1,15 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { Badge, Skeleton } from '@aftergame/ui';
-import type { GroupMemberDto } from '@aftergame/shared';
 import { getGroup } from '../../features/groups/groups.api.js';
 import { queryKeys } from '../api/queries.js';
 import { useGroupSubscription } from '../realtime/SocketProvider.js';
-
-const ROLE_LABEL: Record<GroupMemberDto['role'], string> = {
-  OWNER: 'Owner',
-  COHOST: 'Co-host',
-  MEMBER: 'Member',
-};
+import { usePlural, useT } from '../i18n/LocaleProvider.js';
 
 /**
  * The group sidebar: who is here, and where they stand.
@@ -19,6 +13,8 @@ const ROLE_LABEL: Record<GroupMemberDto['role'], string> = {
  * and the counter is per-group, so it says nothing about them anywhere else (D6, D7).
  */
 export function GroupSidebar({ groupId }: { groupId: string | undefined }) {
+  const t = useT();
+  const plural = usePlural();
   useGroupSubscription(groupId);
 
   const group = useQuery({
@@ -30,9 +26,7 @@ export function GroupSidebar({ groupId }: { groupId: string | undefined }) {
   if (groupId === undefined) {
     return (
       <div className="hidden w-64 shrink-0 border-r border-[var(--color-border)] bg-[var(--color-surface)] p-4 md:block">
-        <p className="text-sm text-[var(--color-ink-muted)]">
-          Pick a group from the rail, or create one.
-        </p>
+        <p className="text-sm text-[var(--color-ink-muted)]">{t('shell.pickRoom')}</p>
       </div>
     );
   }
@@ -50,7 +44,7 @@ export function GroupSidebar({ groupId }: { groupId: string | undefined }) {
         <p className="mt-0.5 text-xs text-[var(--color-ink-muted)]">
           {group.data === undefined
             ? ' '
-            : `${String(group.data.memberCount)} ${group.data.memberCount === 1 ? 'member' : 'members'}`}
+            : plural('room.membersOne', 'room.members', group.data.memberCount)}
         </p>
       </div>
 
@@ -59,7 +53,7 @@ export function GroupSidebar({ groupId }: { groupId: string | undefined }) {
           id="members-heading"
           className="text-xs font-medium tracking-wide text-[var(--color-ink-muted)] uppercase"
         >
-          Members
+          {t('players.title')}
         </h3>
 
         {group.isPending && (
@@ -71,7 +65,7 @@ export function GroupSidebar({ groupId }: { groupId: string | undefined }) {
         )}
 
         {group.isError && (
-          <p className="mt-3 text-sm text-[var(--color-ink-muted)]">Could not load members.</p>
+          <p className="mt-3 text-sm text-[var(--color-ink-muted)]">{t('shell.membersFailed')}</p>
         )}
 
         <ul className="mt-2">
@@ -83,14 +77,16 @@ export function GroupSidebar({ groupId }: { groupId: string | undefined }) {
               <span className="min-w-0">
                 <span className="block truncate">{member.username}</span>
                 <span className="text-xs text-[var(--color-ink-muted)]">
-                  {ROLE_LABEL[member.role]}
+                  {t(`players.role.${member.role}`)}
                   {member.consecutivePunishments > 0 &&
                     member.status === 'ACTIVE' &&
                     ` · ${String(member.consecutivePunishments)} punishment${member.consecutivePunishments === 1 ? '' : 's'}`}
                 </span>
               </span>
 
-              {member.status === 'GAME_BLOCKED' && <Badge tone="danger">Blocked</Badge>}
+              {member.status === 'GAME_BLOCKED' && (
+                <Badge tone="danger">{t('players.blocked')}</Badge>
+              )}
             </li>
           ))}
         </ul>

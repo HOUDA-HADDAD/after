@@ -16,11 +16,14 @@ export function Drawer({
   open,
   onOpenChange,
   title,
+  closeLabel,
   children,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
+  /** Accessible name for the close button. A prop, because this package holds no dictionary. */
+  closeLabel: string;
   children: ReactNode;
 }) {
   return (
@@ -42,7 +45,7 @@ export function Drawer({
           <div className="flex items-center justify-between border-b border-[var(--color-border)] px-4 py-3">
             <Dialog.Title className="text-sm font-medium">{title}</Dialog.Title>
             <Dialog.Close
-              aria-label="Close navigation"
+              aria-label={closeLabel}
               className="rounded-[var(--radius-control)] p-1 text-[var(--color-ink-muted)] hover:bg-[var(--color-surface-sunken)]"
             >
               <X size={18} aria-hidden="true" />

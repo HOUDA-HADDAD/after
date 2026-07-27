@@ -147,7 +147,7 @@ describe('the app shell', () => {
   it('labels the navigation landmark', async () => {
     renderShell();
 
-    expect(await screen.findByRole('navigation', { name: 'Groups' })).toBeInTheDocument();
+    expect(await screen.findByRole('navigation', { name: 'Rooms' })).toBeInTheDocument();
   });
 
   it('stays quiet about the connection while it is live', async () => {
@@ -179,7 +179,7 @@ describe('the app shell', () => {
       setViewportWidth(width);
       renderShell();
 
-      const navigation = await screen.findByRole('navigation', { name: 'Groups' });
+      const navigation = await screen.findByRole('navigation', { name: 'Rooms' });
 
       // `find`, not `get`: the landmark is on screen immediately, but the group it describes
       // arrives with the request, so a synchronous query here would only see skeletons.
@@ -205,7 +205,7 @@ describe('the app shell', () => {
 
       // At phone width the navigation is deliberately off screen until asked for — the main
       // panel is the game, and a rail would eat a third of it.
-      expect(screen.queryByRole('navigation', { name: 'Groups' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('navigation', { name: 'Rooms' })).not.toBeInTheDocument();
 
       await user.click(await screen.findByRole('button', { name: 'Open navigation' }));
 
@@ -277,21 +277,21 @@ describe('the app shell', () => {
       // perfectly normal and answers no input at all.
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
       expect(screen.getByRole('main').closest('[inert]')).toBeNull();
-      expect(await screen.findByRole('navigation', { name: 'Groups' })).toBeInTheDocument();
+      expect(await screen.findByRole('navigation', { name: 'Rooms' })).toBeInTheDocument();
     });
 
     it('reflows when the viewport changes without remounting', async () => {
       setViewportWidth(VIEWPORTS.desktop);
       renderShell();
 
-      expect(await screen.findByRole('navigation', { name: 'Groups' })).toBeInTheDocument();
+      expect(await screen.findByRole('navigation', { name: 'Rooms' })).toBeInTheDocument();
 
       setViewportWidth(VIEWPORTS.phone);
 
       await waitFor(() => {
         expect(screen.getByRole('button', { name: 'Open navigation' })).toBeInTheDocument();
       });
-      expect(screen.queryByRole('navigation', { name: 'Groups' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('navigation', { name: 'Rooms' })).not.toBeInTheDocument();
     });
   });
 
@@ -307,7 +307,7 @@ describe('the app shell', () => {
       await user.click(await screen.findByRole('button', { name: 'Open navigation' }));
 
       const dialog = await screen.findByRole('dialog');
-      expect(within(dialog).getByText('Groups')).toBeInTheDocument();
+      expect(within(dialog).getByText('Rooms')).toBeInTheDocument();
 
       await user.keyboard('{Escape}');
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();

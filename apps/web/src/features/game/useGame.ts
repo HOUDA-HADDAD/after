@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient, type UseQueryResult } from '@tan
 import type { SessionStateDto } from '@aftergame/shared';
 import { toast } from 'sonner';
 import { queryKeys } from '../../shared/api/queries.js';
-import { messageFor } from '../../shared/lib/error-copy.js';
+import { useErrorMessage } from '../../shared/lib/error-copy.js';
 import { useSessionSubscription } from '../../shared/realtime/SocketProvider.js';
 import { getSession } from './game.api.js';
 
@@ -39,6 +39,7 @@ export function useGameAction<TArgs = void>(
   { onSuccess }: { onSuccess?: (state: SessionStateDto) => void } = {},
 ) {
   const queryClient = useQueryClient();
+  const messageFor = useErrorMessage();
 
   return useMutation({
     mutationFn: action,
@@ -59,6 +60,7 @@ export function useGameEffect<TArgs = void>(
   { onSuccess }: { onSuccess?: () => void } = {},
 ) {
   const queryClient = useQueryClient();
+  const messageFor = useErrorMessage();
 
   return useMutation({
     mutationFn: action,

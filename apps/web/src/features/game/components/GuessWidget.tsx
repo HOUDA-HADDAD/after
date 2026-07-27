@@ -1,5 +1,6 @@
 import { Button, cn } from '@aftergame/ui';
 import { Target } from 'lucide-react';
+import { useT } from '../../../shared/i18n/LocaleProvider.js';
 import type { SessionPlayerDto, TimelineTextDto } from '@aftergame/shared';
 
 /**
@@ -23,18 +24,19 @@ export function GuessWidget({
   pending: boolean;
   onGuess: (playerId: string) => void;
 }) {
+  const t = useT();
   const candidates = players.filter((player) => !player.isYou);
   const guessedId = text.yourGuess?.playerId ?? null;
 
   if (!open) {
     return guessedId === null ? null : (
       <p className="mt-3 text-sm text-[var(--color-ink-muted)]">
-        You guessed {text.yourGuess?.username}.
+        {t('guess.youGuessed', { name: text.yourGuess?.username ?? '' })}{' '}
         {text.yourGuessCorrect === null
-          ? ' Whether that was right depends on the group revealing authors.'
+          ? t('guess.pending')
           : text.yourGuessCorrect
-            ? ' That was right.'
-            : ' That was wrong.'}
+            ? t('guess.right')
+            : t('guess.wrong')}
       </p>
     );
   }
@@ -43,10 +45,10 @@ export function GuessWidget({
     <div className="mt-3">
       <p className="flex items-center gap-1.5 text-sm font-medium">
         <Target size={14} aria-hidden="true" />
-        Who wrote this?
+        {t('guess.who')}
       </p>
 
-      <div role="group" aria-label="Guess the author" className="mt-2 flex flex-wrap gap-2">
+      <div role="group" aria-label={t('guess.label')} className="mt-2 flex flex-wrap gap-2">
         {candidates.map((player) => {
           const chosen = player.playerId === guessedId;
 
@@ -71,9 +73,7 @@ export function GuessWidget({
       </div>
 
       <p className="mt-1.5 text-xs text-[var(--color-ink-muted)]">
-        {guessedId === null
-          ? 'You can change your mind until the discussion ends.'
-          : 'Saved. You can still change it.'}
+        {guessedId === null ? t('guess.canChange') : t('guess.saved')}
       </p>
     </div>
   );

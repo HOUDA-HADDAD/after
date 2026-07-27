@@ -1,4 +1,5 @@
 import { Trash2 } from 'lucide-react';
+import { useT } from '../../../shared/i18n/LocaleProvider.js';
 
 /** Hours until a timestamp, rounded down, floored at zero. */
 function hoursUntil(iso: string, now: number): number {
@@ -21,6 +22,8 @@ export function PurgeNotice({
   purgeAfter: string | null;
   now?: number;
 }) {
+  const t = useT();
+
   if (purgeAfter === null) return null;
 
   const hours = hoursUntil(purgeAfter, now);
@@ -29,8 +32,10 @@ export function PurgeNotice({
     <p className="mx-auto mt-6 mb-10 flex max-w-[72ch] items-center gap-2 px-4 text-sm text-[var(--color-ink-muted)] sm:px-6">
       <Trash2 size={14} aria-hidden="true" className="shrink-0" />
       {hours === 0
-        ? 'This game disappears within the hour — screenshots are the only souvenirs.'
-        : `This game disappears in ${String(hours)} ${hours === 1 ? 'hour' : 'hours'}, along with every text in it.`}
+        ? t('game.purgeSoon')
+        : hours === 1
+          ? t('game.purgeHoursOne')
+          : t('game.purgeHours', { count: hours })}
     </p>
   );
 }

@@ -180,7 +180,7 @@ test.describe('a game played by three people at once', () => {
 
       // One refusal, and the table stays anonymous — for the two who voted yes as well (D8).
       for (const player of everyone) {
-        await expect(player.page.getByText(/the group chose to stay anonymous/i)).toBeVisible({
+        await expect(player.page.getByText(/the room chose to stay anonymous/i)).toBeVisible({
           timeout: 20_000,
         });
         await expect(player.page.getByText(/^Written by /)).toHaveCount(0);
@@ -220,7 +220,7 @@ test.describe('a game played by three people at once', () => {
       await sarah.page.getByRole('button', { name: /move to the reveal vote/i }).click();
 
       // Two players: the screen says outright that a refusal identifies whoever made it.
-      await expect(sarah.page.getByText(/identifies them outright/i)).toBeVisible();
+      await expect(sarah.page.getByText(/identifies whoever refused outright/i)).toBeVisible();
 
       for (const player of everyone) {
         await player.page.getByRole('button', { name: /reveal the authors/i }).click();

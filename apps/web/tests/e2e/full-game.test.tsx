@@ -495,7 +495,7 @@ describe('three players, one Anecdotes game', () => {
       await playAs(player, `/groups/${groupId}/games/${sessionId}`, async () => {
         await gameOnScreen();
         await user().click(await screen.findByRole('button', { name: button }));
-        await screen.findByText(/your vote is in|the group chose to stay anonymous/i);
+        await screen.findByText(/your vote is in|the room chose to stay anonymous/i);
       });
     }
 
@@ -504,7 +504,7 @@ describe('three players, one Anecdotes game', () => {
       await playAs(player, `/groups/${groupId}/games/${sessionId}`, async () => {
         await gameOnScreen();
 
-        expect(await screen.findByText(/the group chose to stay anonymous/i)).toBeVisible();
+        expect(await screen.findByText(/the room chose to stay anonymous/i)).toBeVisible();
         expect(screen.queryByText(/^Written by /)).not.toBeInTheDocument();
         expect(screen.queryByText(/who read the room/i)).not.toBeInTheDocument();
         // Nothing on the page hints at the split, or at who refused (D8a).

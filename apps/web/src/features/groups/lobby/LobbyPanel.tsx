@@ -6,7 +6,7 @@ import { Button, Skeleton, cn } from '@aftergame/ui';
 import { Gamepad2, Play, Users } from 'lucide-react';
 import type { GroupMemberDto } from '@aftergame/shared';
 import { queryKeys } from '../../../shared/api/queries.js';
-import { messageFor } from '../../../shared/lib/error-copy.js';
+import { useErrorMessage } from '../../../shared/lib/error-copy.js';
 import { usePlural, useT } from '../../../shared/i18n/LocaleProvider.js';
 import { createSession, getLiveSession, listThemes } from '../../game/game.api.js';
 import { PlayerList } from './PlayerList.js';
@@ -44,6 +44,7 @@ export function LobbyPanel({
   onForgive: (userId: string) => void;
 }) {
   const t = useT();
+  const messageFor = useErrorMessage();
   const plural = usePlural();
   const navigate = useNavigate();
   const queryClient = useQueryClient();

@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { ChevronDown, Settings2 } from 'lucide-react';
 import { Button, Card, Skeleton, cn } from '@aftergame/ui';
 import { queryKeys } from '../../shared/api/queries.js';
-import { messageFor } from '../../shared/lib/error-copy.js';
+import { useErrorMessage } from '../../shared/lib/error-copy.js';
 import { useT } from '../../shared/i18n/LocaleProvider.js';
 import { useGroupSubscription } from '../../shared/realtime/SocketProvider.js';
 import { useSession } from '../auth/SessionProvider.js';
@@ -39,6 +39,7 @@ export default function GroupDetailPage() {
   const queryClient = useQueryClient();
   const { state } = useSession();
   const t = useT();
+  const messageFor = useErrorMessage();
 
   const [settingsOpen, setSettingsOpen] = useState(false);
 

@@ -4,9 +4,12 @@ import { PASSWORD_MIN_LENGTH, registerSchema } from '@aftergame/shared';
 import { useSession } from './SessionProvider.js';
 import { Button, ErrorText, Field } from '@aftergame/ui';
 import { AuthLayout } from './AuthLayout.js';
-import { fieldErrorsFor, messageFor } from '../../shared/lib/error-copy.js';
+import { useT } from '../../shared/i18n/LocaleProvider.js';
+import { fieldErrorsFor, useErrorMessage } from '../../shared/lib/error-copy.js';
 
 export default function RegisterPage() {
+  const t = useT();
+  const messageFor = useErrorMessage();
   const { register } = useSession();
   const navigate = useNavigate();
 
@@ -50,13 +53,13 @@ export default function RegisterPage() {
 
   return (
     <AuthLayout
-      title="Create an account"
-      subtitle="You will need one before you can join a group."
+      title={t('auth.registerTitle')}
+      subtitle={t('auth.registerSubtitle')}
       footer={
         <>
-          Already have an account?{' '}
+          {t('auth.haveAccount')}{' '}
           <Link to="/login" className="text-[var(--color-accent)] underline underline-offset-2">
-            Sign in
+            {t('auth.signIn')}
           </Link>
         </>
       }
@@ -68,20 +71,20 @@ export default function RegisterPage() {
 
         <Field
           id="username"
-          label="Username"
+          label={t('auth.username')}
           value={username}
           onChange={(event) => {
             setUsername(event.target.value);
           }}
           error={errors.username}
           autoComplete="nickname"
-          hint="Shown to people in your groups. Letters, numbers, and . _ -"
+          hint={t('auth.usernameHint')}
           disabled={pending}
         />
 
         <Field
           id="email"
-          label="Email"
+          label={t('auth.email')}
           type="email"
           value={email}
           onChange={(event) => {
@@ -94,7 +97,7 @@ export default function RegisterPage() {
 
         <Field
           id="password"
-          label="Password"
+          label={t('auth.password')}
           type="password"
           value={password}
           onChange={(event) => {
@@ -102,12 +105,12 @@ export default function RegisterPage() {
           }}
           error={errors.password}
           autoComplete="new-password"
-          hint={`At least ${String(PASSWORD_MIN_LENGTH)} characters. A short phrase beats a complicated word.`}
+          hint={t('auth.passwordHint', { count: PASSWORD_MIN_LENGTH })}
           disabled={pending}
         />
 
         <Button type="submit" variant="primary" pending={pending} className="mt-2 w-full">
-          Create account
+          {t('auth.register')}
         </Button>
       </form>
     </AuthLayout>

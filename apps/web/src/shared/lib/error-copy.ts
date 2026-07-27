@@ -1,43 +1,57 @@
+import { useCallback } from 'react';
 import type { ErrorCode } from '@aftergame/shared';
 import { ApiError, NetworkError } from '../api/client.js';
+import { useT } from '../i18n/LocaleProvider.js';
+import type { TranslationKey } from '../i18n/translations.js';
+
+/** The codes with copy of their own. Anything else falls back to a generic failure. */
+const KNOWN = new Set<ErrorCode>([
+  'VALIDATION_FAILED',
+  'EMPTY_CONTENT',
+  'UNAUTHENTICATED',
+  'INVALID_CREDENTIALS',
+  'FORBIDDEN',
+  'MEMBER_GAME_BLOCKED',
+  'NOT_FOUND',
+  'SESSION_GONE',
+  'EMAIL_TAKEN',
+  'USERNAME_TAKEN',
+  'SESSION_ALREADY_ACTIVE',
+  'SESSION_PHASE_INVALID',
+  'SESSION_TOO_FEW_PLAYERS',
+  'SESSION_ROSTER_LOCKED',
+  'ALREADY_SUBMITTED',
+  'INVITE_UNUSABLE',
+  'RATE_LIMITED',
+  'INTERNAL',
+]);
 
 /**
- * Error code to human copy.
+ * Error code to translation key.
  *
- * One place to write the words a user reads, keyed by the stable code the API sends. This is also
- * where translations would slot in, which is why no component composes error prose itself.
+ * One place to decide which words a reader gets, keyed by the stable code the API sends. The
+ * client never matches on English prose: the server can reword a title and a translator can
+ * reword the French, and neither breaks the other.
+ *
+ * Pure and hook-free, so it works in a class component or a test as readily as in a screen.
  */
-const COPY: Partial<Record<ErrorCode, string>> = {
-  VALIDATION_FAILED: 'Please check the highlighted fields.',
-  EMPTY_CONTENT: 'Write something first — it cannot be empty.',
-  UNAUTHENTICATED: 'Please sign in to continue.',
-  INVALID_CREDENTIALS: 'Email or password is incorrect.',
-  FORBIDDEN: 'You do not have permission to do that.',
-  MEMBER_GAME_BLOCKED: 'You cannot join games in this group until a host forgives you.',
-  NOT_FOUND: 'We could not find that.',
-  SESSION_GONE: 'That game has ended and been deleted.',
-  EMAIL_TAKEN: 'That email already has an account. Try signing in instead.',
-  USERNAME_TAKEN: 'That username is taken. Pick another one.',
-  SESSION_ALREADY_ACTIVE: 'A game is already running in this group.',
-  SESSION_PHASE_INVALID: 'The game has already moved on.',
-  SESSION_TOO_FEW_PLAYERS: 'You need at least two players to start.',
-  SESSION_ROSTER_LOCKED: 'This game has already started.',
-  ALREADY_SUBMITTED: 'You have already submitted that.',
-  INVITE_UNUSABLE: 'That code does not work. Ask for a new one.',
-  RATE_LIMITED: 'Too many attempts. Please wait a moment and try again.',
-  INTERNAL: 'Something went wrong on our side. Please try again.',
-};
+export function errorKeyFor(error: unknown): TranslationKey {
+  if (error instanceof NetworkError) return 'error.NETWORK';
 
-const FALLBACK = 'Something went wrong. Please try again.';
-
-export function messageFor(error: unknown): string {
-  if (error instanceof NetworkError) {
-    return 'Could not reach the server. Check your connection and try again.';
+  if (error instanceof ApiError && KNOWN.has(error.code)) {
+    return `error.${error.code}` as TranslationKey;
   }
 
-  if (error instanceof ApiError) return COPY[error.code] ?? FALLBACK;
+  // A code the server added and the client has not caught up with reads as a generic failure —
+  // never as the key itself, rendered at somebody.
+  return 'error.FALLBACK';
+}
 
-  return FALLBACK;
+/** The message for a failure, in the reader's language. */
+export function useErrorMessage(): (error: unknown) => string {
+  const t = useT();
+
+  return useCallback((error: unknown) => t(errorKeyFor(error)), [t]);
 }
 
 /** Field-level messages from a validation failure, keyed by field name. */
