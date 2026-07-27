@@ -96,7 +96,7 @@ function ThemeCard({
       }}
       className={cn(
         'group relative flex flex-col items-start gap-2 overflow-hidden p-5 text-left',
-        'rounded-[var(--radius-card)] border transition-all duration-200',
+        'rounded-[var(--radius-card)] border transition-all duration-[var(--duration-base)]',
         'focus-visible:outline-2 focus-visible:outline-offset-2',
         'disabled:cursor-not-allowed disabled:opacity-60',
         selected
@@ -115,7 +115,7 @@ function ThemeCard({
       <span
         aria-hidden="true"
         className={cn(
-          'pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300',
+          'pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-[var(--duration-base)] ease-[var(--ease-out)]',
           'bg-[image:var(--gradient-lobby)]',
           selected ? 'opacity-100' : 'group-hover:opacity-100',
         )}
@@ -126,7 +126,7 @@ function ThemeCard({
           aria-hidden="true"
           className={cn(
             'inline-flex h-11 w-11 items-center justify-center rounded-[var(--radius-control)]',
-            'text-2xl transition-transform duration-200',
+            'text-2xl transition-transform duration-[var(--duration-base)]',
             selected ? 'bg-[var(--color-surface)]' : 'bg-[var(--color-surface-sunken)]',
             'motion-safe:group-hover:scale-110',
           )}

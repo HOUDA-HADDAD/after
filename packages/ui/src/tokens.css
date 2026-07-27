@@ -66,6 +66,43 @@
   --radius-card: 1rem;
   --radius-panel: 1.5rem;
 
+  /*
+   * Motion.
+   *
+   * Three durations and two curves for the whole app, because a rhythm is a thing you notice only
+   * when it is missing: five hand-picked durations read as five different products. The values are
+   * the ones interaction guidelines converge on — 150ms for a colour, 200ms for movement, 300ms
+   * for something that changes size or position across a whole panel. Nothing here goes past
+   * 300ms; beyond that a micro-interaction stops feeling like feedback and starts feeling like a
+   * wait.
+   *
+   * Enter with ease-out and leave with ease-in: motion that decelerates into place reads as
+   * arriving, and the reverse reads as leaving.
+   */
+  --duration-fast: 150ms;
+  --duration-base: 200ms;
+  --duration-slow: 300ms;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /*
+   * The stacking order, named.
+   *
+   * Four layers is all this app has. Naming them is what stops the fifth from being `z-[9999]`
+   * chosen in a hurry — the number to use is the one above whatever you are covering, and that is
+   * now a readable question rather than a search through stylesheets.
+   */
+  --z-raised: 10;
+  --z-sticky: 20;
+  --z-overlay: 40;
+  --z-modal: 50;
+
+  /* Disabled sits at the bottom of the legibility range that still reads as text, not as a gap. */
+  --opacity-disabled: 0.55;
+
+  /* The smallest comfortable target for a finger. Controls smaller than this expand to meet it. */
+  --size-touch-target: 2.75rem; /* 44px */
+
   /* One shadow, used sparingly. Depth is carried by borders and surface steps instead. */
   --shadow-card: 0 1px 2px oklch(0% 0 0 / 6%), 0 4px 12px oklch(0% 0 0 / 4%);
   --shadow-panel: 0 1px 2px oklch(0% 0 0 / 5%), 0 12px 40px oklch(50% 0.1 274 / 10%);

@@ -232,3 +232,139 @@ test.describe('the mobile drawer', () => {
     }
   });
 });
+
+/**
+ * Every control is big enough to hit.
+ *
+ * 44×44 CSS pixels is the floor interaction guidelines converge on, and it is the rule most easily
+ * lost to a redesign: a toolbar gets denser, an icon button drops to 32px, and nothing fails —
+ * axe does not check target size at AA, so no other test in this repo would notice.
+ *
+ * The measurement deliberately accounts for the `.touch-target` pseudo-element, because that is
+ * the whole point of it: several controls are drawn at 32px and *hit* at 44px, and a check that
+ * only read `getBoundingClientRect` would report a failure that does not exist while missing a
+ * real one elsewhere.
+ */
+const MEASURE_TARGETS = `(() => {
+  const CONTROLS = 'button, select, input:not([type=hidden]), textarea, [role="button"], [role="radio"], [role="checkbox"]';
+  const LINKS = 'a[href]';
+
+  /*
+   * Two floors, because there are two standards and conflating them produces noise.
+   *
+   *   - **44px** for controls. This is the interaction guideline the design commits to, and the
+   *     one this codebase can always satisfy: a button's size is entirely ours to choose.
+   *   - **24px** for links, which is WCAG 2.5.8 Target Size (Minimum) — the normative AA
+   *     requirement. A link is sized by the words in it; padding a wordmark or an inline link out
+   *     to 44px would wreck the line it sits on, which is why the standard sets a lower bar.
+   */
+  const FLOOR = { control: 44, link: 24 };
+  const small = [];
+
+  const measure = (el, floor) => {
+    const box = el.getBoundingClientRect();
+
+    if (box.width <= 1 || box.height <= 1) return;
+
+    /*
+     * Visually hidden until focused.
+     *
+     * The skip link is a keyboard affordance that no pointer ever aims at; while hidden it is
+     * clipped away to nothing and only its padding gives it a bounding box at all. Both the
+     * legacy \`clip\` and the modern \`clip-path\` form count, and so does a 1px declared size —
+     * utility frameworks differ on which they use, and the box on screen is 0 either way.
+     */
+    const style = getComputedStyle(el);
+
+    if (style.clip !== 'auto' || style.clipPath !== 'none') return;
+    if (parseFloat(style.width) <= 1 && parseFloat(style.height) <= 1) return;
+
+    let width = box.width;
+    let height = box.height;
+    const after = getComputedStyle(el, '::after');
+
+    // \`.touch-target\` expands the hit area past the drawn bounds; that expansion is the target.
+    if (after.content && after.content !== 'none') {
+      width = Math.max(width, parseFloat(after.minWidth) || 0);
+      height = Math.max(height, parseFloat(after.minHeight) || 0);
+    }
+
+    if (width < floor || height < floor) {
+      const label = (el.getAttribute('aria-label') || el.textContent || el.tagName).trim();
+      small.push(label.slice(0, 40) + ' — ' + Math.round(width) + 'x' + Math.round(height) +
+                 ' (needs ' + floor + ')');
+    }
+  };
+
+  /*
+   * WCAG 2.5.8's "inline" exception, applied as the spec words it: a target whose size is
+   * constrained by the line-height of the non-target text around it. Detected structurally — the
+   * link shares its parent with other text — rather than by guessing from CSS, because a flex
+   * container blockifies its children and \`display\` stops telling the truth.
+   */
+  const inSentence = (el) => {
+    const parent = el.parentElement;
+
+    if (parent === null) return false;
+
+    return [...parent.childNodes].some(
+      (node) => node.nodeType === Node.TEXT_NODE && node.textContent.trim() !== '',
+    );
+  };
+
+  for (const el of document.querySelectorAll(CONTROLS)) measure(el, FLOOR.control);
+  for (const el of document.querySelectorAll(LINKS)) if (!inSentence(el)) measure(el, FLOOR.link);
+
+  return small;
+})()`;
+
+async function expectTouchTargets(page: Page, where: string): Promise<void> {
+  const small = await page.evaluate<string[]>(MEASURE_TARGETS);
+
+  expect(small, `${where}: targets below the minimum\n  ${small.join('\n  ')}`).toEqual([]);
+}
+
+test.describe('every control can be hit with a thumb', () => {
+  test('meets the 44px minimum on every screen', async ({ browser }) => {
+    const sarah = await signUp(browser, 'sarah');
+    const ahmed = await signUp(browser, 'ahmed');
+
+    try {
+      const groupId = await assembleGroup(sarah, [ahmed]);
+      const prompts = await anecdotesPrompts(sarah, groupId);
+
+      const anonymous = await browser.newContext();
+      const guest = await anonymous.newPage();
+
+      await guest.goto('/login');
+      await expect(guest.getByRole('button', { name: /sign in/i })).toBeVisible();
+      await expectTouchTargets(guest, 'login');
+
+      await guest.goto('/register');
+      await expect(guest.getByRole('button', { name: /create account/i })).toBeVisible();
+      await expectTouchTargets(guest, 'register');
+
+      await anonymous.close();
+
+      await sarah.page.goto('/');
+      await expect(sarah.page.getByRole('heading', { name: 'Your rooms' })).toBeVisible();
+      await expectTouchTargets(sarah.page, 'rooms');
+
+      // The room page carries the densest toolbars in the app — the roster's punish/forgive
+      // buttons, the room-code chip, and the theme cards.
+      await sarah.page.goto(`/groups/${groupId}`);
+      await expect(sarah.page.getByRole('heading', { name: 'Choose a theme' })).toBeVisible();
+      await expectTouchTargets(sarah.page, 'room');
+
+      const sessionId = await openGame(sarah, groupId);
+      await joinGame(ahmed, sessionId);
+      await startGame(sarah, sessionId);
+
+      await sarah.page.goto(gameUrl(groupId, sessionId));
+      await expect(sarah.page.getByRole('textbox', { name: prompts.write })).toBeVisible();
+      await expectTouchTargets(sarah.page, 'writing');
+    } finally {
+      await closeAll([sarah, ahmed]);
+    }
+  });
+});

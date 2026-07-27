@@ -102,7 +102,7 @@ function PlayerCard({
     <div
       className={cn(
         'flex items-center gap-3 rounded-[var(--radius-control)] px-3 py-2.5',
-        'transition-colors duration-200 hover:bg-[var(--color-surface-sunken)]',
+        'transition-colors duration-[var(--duration-base)] hover:bg-[var(--color-surface-sunken)]',
         isYou && 'bg-[var(--color-surface-sunken)]',
       )}
     >

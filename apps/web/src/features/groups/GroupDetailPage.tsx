@@ -174,7 +174,7 @@ export default function GroupDetailPage() {
           <ChevronDown
             size={16}
             aria-hidden="true"
-            className="ml-auto text-[var(--color-ink-muted)] transition-transform duration-200 group-open:rotate-180"
+            className="ml-auto text-[var(--color-ink-muted)] transition-transform duration-[var(--duration-base)] group-open:rotate-180"
           />
         </summary>
 

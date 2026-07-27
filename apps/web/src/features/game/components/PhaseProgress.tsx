@@ -35,7 +35,7 @@ export function PhaseProgress({
         className="h-1.5 overflow-hidden rounded-full bg-[var(--color-surface-sunken)]"
       >
         <div
-          className="h-full rounded-full bg-[var(--color-accent)] transition-[width] duration-500 motion-reduce:transition-none"
+          className="h-full rounded-full bg-[var(--color-accent)] transition-[width] duration-[var(--duration-slow)] ease-[var(--ease-out)] motion-reduce:transition-none"
           style={{ width: `${String(percent)}%` }}
         />
       </div>

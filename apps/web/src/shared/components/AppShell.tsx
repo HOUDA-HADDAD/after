@@ -80,7 +80,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         {/* Keyboard users should not have to tab through the navigation to reach content. */}
         <a
           href="#main"
-          className="sr-only rounded-[var(--radius-control)] bg-[var(--color-accent)] px-4 py-2 text-[var(--color-accent-ink)] focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50"
+          className="sr-only rounded-[var(--radius-control)] bg-[var(--color-accent)] px-4 py-2 text-[var(--color-accent-ink)] focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[var(--z-modal)]"
         >
           {t('shell.skipToContent')}
         </a>
@@ -145,18 +145,21 @@ function TopBar({
   const { connection } = useSocket();
 
   return (
-    <header className="flex shrink-0 items-center justify-between gap-3 border-b border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2">
+    <header className="flex shrink-0 items-center justify-between gap-3 border-b border-[var(--color-border)] bg-[var(--color-surface)] px-3">
       <div className="flex items-center gap-2">
         {showNavigationButton && (
-          <button
+          // The shared primitive rather than a bare `<button>`: it was the one control in the
+          // shell with its own hover treatment, its own sizing and no pressed state, and none of
+          // that was intentional.
+          <Button
             ref={triggerRef}
-            type="button"
+            variant="ghost"
+            size="icon"
             onClick={onOpenNavigation}
             aria-label={t('shell.openNavigation')}
-            className="rounded-[var(--radius-control)] p-2 hover:bg-[var(--color-surface-sunken)]"
           >
             <Menu size={20} aria-hidden="true" />
-          </button>
+          </Button>
         )}
 
         <Link to="/" className="text-base font-semibold tracking-tight">
@@ -177,7 +180,7 @@ function TopBar({
 
         <Button
           variant="ghost"
-          size="sm"
+          size="icon"
           onClick={toggle}
           aria-label={theme === 'dark' ? t('shell.toLight') : t('shell.toDark')}
         >
@@ -190,7 +193,7 @@ function TopBar({
 
         <Button
           variant="ghost"
-          size="sm"
+          size="icon"
           onClick={() => void logout()}
           aria-label={t('shell.signOut')}
         >

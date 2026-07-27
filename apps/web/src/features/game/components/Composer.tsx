@@ -104,7 +104,10 @@ export function Composer({
           aria-invalid={warning !== null}
           className={cn(
             'w-full resize-y rounded-[var(--radius-card)] border bg-[var(--color-surface)] p-3',
+            // Room along the bottom for the dictation button, so text never runs under it.
+            dictation.supported && 'pb-12',
             'text-sm leading-relaxed outline-none transition-colors',
+            'duration-[var(--duration-fast)] ease-[var(--ease-in-out)]',
             'focus-visible:border-[var(--color-accent)]',
             warning === null ? 'border-[var(--color-border)]' : 'border-[var(--color-danger)]',
           )}
@@ -113,8 +116,16 @@ export function Composer({
         {dictation.supported && (
           <Button
             variant="ghost"
-            size="sm"
-            className="absolute right-2 bottom-2"
+            size="icon"
+            /*
+              Bottom-left, not bottom-right.
+              
+              The browser draws its own resize grabber in the bottom-right corner of a `resize-y`
+              textarea, and the mic was sitting directly on it: a drag to make the box taller hit
+              the microphone instead, and a tap aimed at the microphone sometimes started a
+              resize. Two controls cannot share one corner.
+            */
+            className="absolute bottom-1.5 left-1.5"
             aria-label={dictation.listening ? t('composer.stopDictation') : t('composer.dictate')}
             aria-pressed={dictation.listening}
             onClick={dictation.listening ? dictation.stop : dictation.start}

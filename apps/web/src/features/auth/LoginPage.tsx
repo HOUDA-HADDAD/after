@@ -6,6 +6,10 @@ import { Button, ErrorText, Field } from '@aftergame/ui';
 import { AuthLayout } from './AuthLayout.js';
 import { useT } from '../../shared/i18n/LocaleProvider.js';
 import { fieldErrorsFor, useErrorMessage } from '../../shared/lib/error-copy.js';
+import { focusFirstInvalid } from '../../shared/lib/form.js';
+
+/** Visual order, so "first invalid" is the first one on screen. */
+const FIELD_ORDER = ['email', 'password'] as const;
 
 export default function LoginPage() {
   const t = useT();
@@ -29,11 +33,12 @@ export default function LoginPage() {
     const parsed = loginSchema.safeParse({ email, password });
 
     if (!parsed.success) {
-      setErrors(
-        Object.fromEntries(
-          parsed.error.issues.map((issue) => [String(issue.path[0]), issue.message]),
-        ),
+      const issues = Object.fromEntries(
+        parsed.error.issues.map((issue) => [String(issue.path[0]), issue.message]),
       );
+
+      setErrors(issues);
+      focusFirstInvalid(FIELD_ORDER, issues);
       return;
     }
 
@@ -46,8 +51,11 @@ export default function LoginPage() {
       const state = location.state as { from?: string } | null;
       await navigate(state?.from ?? '/', { replace: true });
     } catch (error) {
+      const issues = fieldErrorsFor(error);
+
       setFormError(messageFor(error));
-      setErrors(fieldErrorsFor(error));
+      setErrors(issues);
+      focusFirstInvalid(FIELD_ORDER, issues);
     } finally {
       setPending(false);
     }
@@ -80,6 +88,7 @@ export default function LoginPage() {
             setEmail(event.target.value);
           }}
           error={errors.email}
+          required
           autoComplete="username"
           disabled={pending}
         />
@@ -93,6 +102,8 @@ export default function LoginPage() {
             setPassword(event.target.value);
           }}
           error={errors.password}
+          required
+          revealLabels={{ show: t('auth.showPassword'), hide: t('auth.hidePassword') }}
           autoComplete="current-password"
           disabled={pending}
         />

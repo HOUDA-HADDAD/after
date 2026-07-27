@@ -66,8 +66,9 @@ export function RoomCode({
         // useless, and this is a string people dictate across a room.
         aria-label={`${t('room.copyCode')}: ${code.split('').join(' ')}`}
         className={cn(
-          'group inline-flex min-h-9 items-center gap-2 rounded-full border px-3 py-1',
-          'text-sm font-medium transition-all duration-200',
+          'touch-target group inline-flex min-h-9 cursor-pointer items-center gap-2',
+          'rounded-full border px-3 py-1',
+          'text-sm font-medium transition-all duration-[var(--duration-base)]',
           'focus-visible:outline-2 focus-visible:outline-offset-2',
           copied
             ? 'border-[var(--color-success)] bg-[var(--color-success-subtle)] text-[var(--color-success)]'
@@ -108,8 +109,8 @@ export function RoomCode({
           aria-label={t('room.generateCode')}
           title={t('room.generateCode')}
           className={cn(
-            'inline-flex h-9 w-9 items-center justify-center rounded-full',
-            'text-[var(--color-ink-muted)] transition-colors',
+            'touch-target inline-flex h-9 w-9 cursor-pointer items-center justify-center',
+            'rounded-full text-[var(--color-ink-muted)] transition-colors',
             'hover:bg-[var(--color-surface-sunken)] hover:text-[var(--color-ink)]',
             'disabled:cursor-not-allowed disabled:opacity-50',
           )}

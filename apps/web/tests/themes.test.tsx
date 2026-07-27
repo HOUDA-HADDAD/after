@@ -93,12 +93,12 @@ describe('group themes', () => {
 
     await user.click(await screen.findByRole('button', { name: /write a theme/i }));
 
-    await user.type(screen.getByLabelText('Name'), 'Confessions');
-    await user.clear(screen.getByLabelText('Icon'));
-    await user.type(screen.getByLabelText('Icon'), '🙊');
-    await user.type(screen.getByLabelText('Description'), 'Own up to something.');
-    await user.type(screen.getByLabelText('Write prompt'), 'Write a confession');
-    await user.type(screen.getByLabelText('Answer prompt'), 'React honestly');
+    await user.type(screen.getByRole('textbox', { name: 'Name' }), 'Confessions');
+    await user.clear(screen.getByRole('textbox', { name: 'Icon' }));
+    await user.type(screen.getByRole('textbox', { name: 'Icon' }), '🙊');
+    await user.type(screen.getByRole('textbox', { name: 'Description' }), 'Own up to something.');
+    await user.type(screen.getByRole('textbox', { name: 'Write prompt' }), 'Write a confession');
+    await user.type(screen.getByRole('textbox', { name: 'Answer prompt' }), 'React honestly');
 
     await user.click(screen.getByRole('button', { name: /add it to the picker/i }));
 
@@ -148,11 +148,11 @@ describe('group themes', () => {
 
     // The form opens on the existing values — an edit form that starts blank is a delete and a
     // retype wearing a different label.
-    expect(screen.getByLabelText('Name')).toHaveValue('Confessions');
-    expect(screen.getByLabelText('Write prompt')).toHaveValue('Write a confession');
+    expect(screen.getByRole('textbox', { name: 'Name' })).toHaveValue('Confessions');
+    expect(screen.getByRole('textbox', { name: 'Write prompt' })).toHaveValue('Write a confession');
 
-    await user.clear(screen.getByLabelText('Name'));
-    await user.type(screen.getByLabelText('Name'), 'Confessions, revised');
+    await user.clear(screen.getByRole('textbox', { name: 'Name' }));
+    await user.type(screen.getByRole('textbox', { name: 'Name' }), 'Confessions, revised');
     await user.click(screen.getByRole('button', { name: /save changes/i }));
 
     const put = calls.find((call) => call.method === 'PUT');

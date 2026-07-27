@@ -1,4 +1,6 @@
 import clsx from 'clsx';
+import { useState } from 'react';
+import { Eye, EyeOff } from 'lucide-react';
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, Ref } from 'react';
 
 /**
@@ -15,11 +17,31 @@ export const cn = clsx;
 /* ---- Button ------------------------------------------------------------------------------ */
 
 type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
-type ButtonSize = 'sm' | 'md';
+type ButtonSize = 'sm' | 'md' | 'icon';
 
+/**
+ * The states every button has, in one place.
+ *
+ * A button is not one appearance but six — default, hover, focus, pressed, disabled, busy — and
+ * the ones that get forgotten are pressed and busy, because neither shows up while you are
+ * looking at a static screen. Both are here:
+ *
+ *   - **Pressed** scales down a hair. It is 2% and you would never name it, but its absence is
+ *     what makes a web button feel like a picture of a button.
+ *   - **Busy** is drawn by `pending` below, not by CSS, because a spinner has to replace the
+ *     label rather than sit beside it and reflow the row.
+ *
+ * `cursor-pointer` is deliberate: `<button>` ships with the arrow cursor, so every button in
+ * every app that never said otherwise is quietly missing the one affordance a mouse user reads
+ * before they read the label.
+ */
 const BUTTON_BASE =
-  'inline-flex items-center justify-center gap-2 rounded-[var(--radius-control)] font-medium ' +
-  'transition-colors disabled:cursor-not-allowed disabled:opacity-55';
+  'relative inline-flex cursor-pointer items-center justify-center gap-2 ' +
+  'rounded-[var(--radius-control)] font-medium ' +
+  'transition-[color,background-color,border-color,scale] ' +
+  'duration-[var(--duration-fast)] ease-[var(--ease-in-out)] ' +
+  'motion-safe:not-disabled:active:scale-[0.98] ' +
+  'disabled:cursor-not-allowed disabled:opacity-[var(--opacity-disabled)]';
 
 const BUTTON_VARIANTS: Record<ButtonVariant, string> = {
   primary:
@@ -33,9 +55,20 @@ const BUTTON_VARIANTS: Record<ButtonVariant, string> = {
 };
 
 const BUTTON_SIZES: Record<ButtonSize, string> = {
-  sm: 'h-8 px-3 text-sm',
-  // 44px: the minimum comfortable touch target, so the same button works on a phone.
+  // Drawn at 32px, tapped at 44px: `touch-target` grows the hit area without growing the button,
+  // so a dense toolbar stays dense and a thumb still lands on it.
+  sm: 'touch-target h-8 px-3 text-sm',
+  // Already at the 44px minimum, so its own bounds are the target.
   md: 'h-11 px-4 text-sm',
+  /*
+   * Square, and the full 44px for real.
+   *
+   * For icon-only controls in persistent chrome, where the pseudo-element trick is the wrong
+   * trade: those controls sit next to a native `<select>`, which cannot carry a pseudo-element at
+   * all, and a row where some targets are honest and one is a fiction is worse than a row that is
+   * simply the right size. Dense in-content toolbars keep `sm`.
+   */
+  icon: 'h-11 w-11 shrink-0 p-0',
 };
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -44,6 +77,32 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   /** Shows a busy state and blocks further clicks. */
   pending?: boolean;
   ref?: Ref<HTMLButtonElement>;
+}
+
+/**
+ * The busy indicator.
+ *
+ * `currentColor`, so it is legible on every variant without a second set of tokens. Hidden from
+ * assistive technology because `aria-busy` on the button already says this — a screen reader
+ * announcing "image" here would be noise on top of a fact it has.
+ */
+function Spinner() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 16 16"
+      className="h-4 w-4 motion-safe:animate-spin"
+      fill="none"
+    >
+      <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeOpacity="0.25" strokeWidth="2.5" />
+      <path
+        d="M8 1.5a6.5 6.5 0 0 1 6.5 6.5"
+        stroke="currentColor"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
 }
 
 export function Button({
@@ -65,7 +124,21 @@ export function Button({
       className={cn(BUTTON_BASE, BUTTON_VARIANTS[variant], BUTTON_SIZES[size], className)}
       {...rest}
     >
-      {children}
+      {/*
+        The label stays in the DOM while busy, holding the button's width open, and goes invisible
+        rather than absent. Swapping it for a spinner would resize the button mid-click and shift
+        whatever sits beside it — a layout jump at the exact moment the user is waiting to find out
+        whether their click worked. The spinner is laid over the top instead.
+      */}
+      <span className={cn('inline-flex items-center gap-2', pending && 'invisible')}>
+        {children}
+      </span>
+
+      {pending && (
+        <span className="absolute inset-0 inline-flex items-center justify-center">
+          <Spinner />
+        </span>
+      )}
     </button>
   );
 }
@@ -79,6 +152,14 @@ export interface FieldProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 
   hint?: string | undefined;
   /** Hide the label visually but keep it for screen readers. */
   labelHidden?: boolean;
+  /**
+   * Accessible name for the show/hide control on a password field.
+   *
+   * Required when `type="password"`, and only then — the primitive has no dictionary of its own,
+   * so the one string it needs comes from the caller. Typed as a pair so a password field cannot
+   * be rendered without it.
+   */
+  revealLabels?: { show: string; hide: string };
 }
 
 /**
@@ -94,14 +175,22 @@ export function Field({
   error,
   hint,
   labelHidden = false,
+  revealLabels,
   className,
+  type,
+  required,
   ...rest
 }: FieldProps) {
+  const [revealed, setRevealed] = useState(false);
+
   const errorId = `${id}-error`;
   const hintId = `${id}-hint`;
   const describedBy = [hint === undefined ? null : hintId, error === undefined ? null : errorId]
     .filter((entry): entry is string => entry !== null)
     .join(' ');
+
+  const isPassword = type === 'password';
+  const canReveal = isPassword && revealLabels !== undefined;
 
   return (
     <div className="mb-4">
@@ -110,21 +199,68 @@ export function Field({
         className={cn('mb-1 block text-sm font-medium', labelHidden && 'sr-only')}
       >
         {label}
+        {/*
+          The asterisk is decoration; `required` on the input is what a screen reader reads. Marked
+          `aria-hidden` so the requirement is announced once, by the input, rather than twice — as
+          "star" and again as "required".
+        */}
+        {required === true && (
+          <span aria-hidden="true" className="ml-0.5 text-[var(--color-danger)]">
+            *
+          </span>
+        )}
       </label>
 
-      <input
-        id={id}
-        aria-invalid={error !== undefined}
-        aria-describedby={describedBy === '' ? undefined : describedBy}
-        className={cn(
-          'h-11 w-full rounded-[var(--radius-control)] border border-[var(--color-border)]',
-          'bg-[var(--color-surface)] px-3 text-sm outline-none transition-colors',
-          'focus-visible:border-[var(--color-accent)] disabled:opacity-60',
-          error !== undefined && 'border-[var(--color-danger)]',
-          className,
+      <div className="relative">
+        <input
+          id={id}
+          // A revealed password is a text input, which is also what stops the browser offering to
+          // save the visible characters as if they were a username.
+          type={canReveal && revealed ? 'text' : type}
+          required={required}
+          aria-invalid={error !== undefined}
+          aria-describedby={describedBy === '' ? undefined : describedBy}
+          className={cn(
+            'h-11 w-full rounded-[var(--radius-control)] border border-[var(--color-border)]',
+            'bg-[var(--color-surface)] px-3 text-sm outline-none',
+            'transition-colors duration-[var(--duration-fast)] ease-[var(--ease-in-out)]',
+            'focus-visible:border-[var(--color-accent)] disabled:opacity-60',
+            // Room for the reveal button, so a long password never runs underneath it.
+            canReveal && 'pr-12',
+            error !== undefined && 'border-[var(--color-danger)]',
+            className,
+          )}
+          {...rest}
+        />
+
+        {canReveal && (
+          <button
+            type="button"
+            // Not in the tab order: it is a convenience, and a keyboard user tabbing from password
+            // to submit should reach submit. Still reachable by pointer, and by screen-reader
+            // navigation, which does not depend on the tab sequence.
+            tabIndex={-1}
+            aria-label={revealed ? revealLabels.hide : revealLabels.show}
+            aria-pressed={revealed}
+            onClick={() => {
+              setRevealed((current) => !current);
+            }}
+            className={cn(
+              'absolute top-1/2 right-1 flex h-11 w-11 -translate-y-1/2 cursor-pointer',
+              'items-center justify-center rounded-[var(--radius-control)]',
+              'text-[var(--color-ink-muted)] transition-colors',
+              'duration-[var(--duration-fast)] ease-[var(--ease-in-out)]',
+              'hover:text-[var(--color-ink)]',
+            )}
+          >
+            {revealed ? (
+              <EyeOff size={16} aria-hidden="true" />
+            ) : (
+              <Eye size={16} aria-hidden="true" />
+            )}
+          </button>
         )}
-        {...rest}
-      />
+      </div>
 
       {hint !== undefined && (
         <p id={hintId} className="mt-1 text-xs text-[var(--color-ink-muted)]">
@@ -133,7 +269,9 @@ export function Field({
       )}
 
       {error !== undefined && (
-        <p id={errorId} className="mt-1 text-xs text-[var(--color-danger)]">
+        // `role="alert"`: a validation message that appears after a submit has to be announced,
+        // not merely be present for anyone who happens to navigate back to the field.
+        <p id={errorId} role="alert" className="mt-1 text-xs text-[var(--color-danger)]">
           {error}
         </p>
       )}

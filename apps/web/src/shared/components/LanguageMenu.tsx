@@ -42,9 +42,14 @@ export function LanguageMenu({ className }: { className?: string }) {
           setLocale(event.target.value as Locale);
         }}
         className={cn(
-          'h-9 cursor-pointer appearance-none rounded-[var(--radius-control)] border border-transparent',
+          // A real 44px, not an expanded hit area: a `<select>` is a replaced element and will
+          // not render the pseudo-element the other controls use, so this is the one place the
+          // target has to be the element itself. It matches the icon buttons beside it.
+          'h-11 cursor-pointer appearance-none rounded-[var(--radius-control)]',
+          'border border-transparent',
           'bg-transparent py-0 pr-2 pl-7 text-sm font-medium text-[var(--color-ink-muted)]',
-          'transition-colors hover:bg-[var(--color-surface-sunken)] hover:text-[var(--color-ink)]',
+          'transition-colors duration-[var(--duration-fast)] ease-[var(--ease-in-out)]',
+          'hover:bg-[var(--color-surface-sunken)] hover:text-[var(--color-ink)]',
         )}
       >
         {LOCALES.map((code) => (

@@ -31,22 +31,32 @@ export function Drawer({
       <Dialog.Portal>
         <Dialog.Overlay
           className={cn(
-            'fixed inset-0 z-40 bg-black/40',
+            'fixed inset-0 z-[var(--z-overlay)] bg-black/55',
             'data-[state=open]:animate-in data-[state=open]:fade-in',
           )}
         />
         <Dialog.Content
           className={cn(
-            'fixed inset-y-0 left-0 z-50 flex w-[18rem] max-w-[85vw] flex-col',
+            'fixed inset-y-0 left-0 z-[var(--z-modal)] flex w-[18rem] max-w-[85vw] flex-col',
             'border-r border-[var(--color-border)] bg-[var(--color-surface)]',
             'focus:outline-none',
           )}
         >
           <div className="flex items-center justify-between border-b border-[var(--color-border)] px-4 py-3">
             <Dialog.Title className="text-sm font-medium">{title}</Dialog.Title>
+            {/*
+              A full 44px square. It was 26px — the smallest target in the app, in the one place
+              where a thumb reaches across the screen to find it, and the only way out of the
+              drawer for anyone not using a keyboard.
+            */}
             <Dialog.Close
               aria-label={closeLabel}
-              className="rounded-[var(--radius-control)] p-1 text-[var(--color-ink-muted)] hover:bg-[var(--color-surface-sunken)]"
+              className={cn(
+                '-mr-2 flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center',
+                'rounded-[var(--radius-control)] text-[var(--color-ink-muted)]',
+                'transition-colors duration-[var(--duration-fast)] ease-[var(--ease-in-out)]',
+                'hover:bg-[var(--color-surface-sunken)] hover:text-[var(--color-ink)]',
+              )}
             >
               <X size={18} aria-hidden="true" />
             </Dialog.Close>

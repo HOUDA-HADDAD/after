@@ -133,6 +133,8 @@ export const en = {
   'auth.usernameHint': 'Shown to people in your rooms. Letters, numbers, and . _ -',
   'auth.email': 'Email',
   'auth.password': 'Password',
+  'auth.showPassword': 'Show password',
+  'auth.hidePassword': 'Hide password',
   'auth.passwordHint': 'At least {count} characters. A short phrase beats a complicated word.',
   'auth.noAccount': 'No account yet?',
   'auth.createOne': 'Create one',
@@ -413,6 +415,8 @@ export const fr: Record<TranslationKey, string> = {
   'auth.usernameHint': 'Visible par les membres de vos salles. Lettres, chiffres, et . _ -',
   'auth.email': 'E-mail',
   'auth.password': 'Mot de passe',
+  'auth.showPassword': 'Afficher le mot de passe',
+  'auth.hidePassword': 'Masquer le mot de passe',
   'auth.passwordHint':
     'Au moins {count} caractères. Une phrase courte vaut mieux qu’un mot compliqué.',
   'auth.noAccount': 'Pas encore de compte ?',

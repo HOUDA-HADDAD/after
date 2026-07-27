@@ -27,7 +27,7 @@ export function ThemeBanner({
 }) {
   const phaseLabel = usePhaseLabel();
   return (
-    <div className="sticky top-0 z-10 border-b border-[var(--color-border)] bg-[var(--color-surface)]/95 backdrop-blur">
+    <div className="sticky top-0 z-[var(--z-sticky)] border-b border-[var(--color-border)] bg-[var(--color-surface)]/95 backdrop-blur">
       <div className="mx-auto flex max-w-3xl flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 sm:px-6">
         <span aria-hidden="true" className="text-lg">
           {theme.icon}
