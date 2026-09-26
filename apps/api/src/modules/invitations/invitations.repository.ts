@@ -37,9 +37,14 @@ export const createInvitationsRepository = (db: DbClient) => ({
         groupId,
         revokedAt: null,
         OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+        AND: [{ OR: [{ maxUses: null }, { useCount: { lt: db.invitation.fields.maxUses } }] }],
       },
       orderBy: { createdAt: 'desc' },
     });
+  },
+
+  async revokeAll(groupId: string, now: Date): Promise<void> {
+    await db.invitation.updateMany({ where: { groupId, revokedAt: null }, data: { revokedAt: now } });
   },
 
   async revoke(id: string, now: Date): Promise<void> {

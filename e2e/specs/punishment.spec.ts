@@ -27,8 +27,8 @@ test.describe('a blocked player', () => {
       await ahmed.page.goto(gameUrl(groupId, sessionId));
 
       // The explanation replaces the join button rather than sitting beside a dead one.
-      await expect(ahmed.page.getByText(/until a host forgives you/i)).toBeVisible();
-      await expect(ahmed.page.getByRole('button', { name: /join the game/i })).toHaveCount(0);
+      await expect(ahmed.page.getByText(/tant qu’un hôte ne vous a pas pardonné/i)).toBeVisible();
+      await expect(ahmed.page.getByRole('button', { name: /Rejoindre la partie/i })).toHaveCount(0);
 
       // And the rest of the group still works — the block is about games, not membership.
       await ahmed.page.goto(`/groups/${groupId}`);
@@ -53,9 +53,9 @@ test.describe('a blocked player', () => {
 
       // Punishment is public within the group by design (D6) — a player who silently vanished
       // from the lobby would be a mystery rather than a consequence.
-      await expect(sarah.page.getByText(/sitting this one out/i)).toBeVisible();
+      await expect(sarah.page.getByText(/Ne participe pas/i)).toBeVisible();
       await expect(
-        sarah.page.getByText(new RegExp(`${ahmed.name} — blocked from games`)),
+        sarah.page.getByText(new RegExp(`${ahmed.name} — exclu des parties`)),
       ).toBeVisible();
     } finally {
       await closeAll(players);
@@ -74,18 +74,18 @@ test.describe('a blocked player', () => {
 
       const sessionId = await openGame(sarah, groupId);
       await ahmed.page.goto(gameUrl(groupId, sessionId));
-      await expect(ahmed.page.getByText(/until a host forgives you/i)).toBeVisible();
+      await expect(ahmed.page.getByText(/tant qu’un hôte ne vous a pas pardonné/i)).toBeVisible();
 
       // The host forgives from the group screen, through the UI. Scoped to the roster inside the
       // main panel: the sidebar lists the same people, and so does the punishment history below.
       await sarah.page.goto(`/groups/${groupId}`);
-      const roster = sarah.page.locator('main').getByRole('region', { name: 'Players' });
+      const roster = sarah.page.locator('main').getByRole('region', { name: "Joueurs" });
 
       await expect(roster.getByText(ahmed.name)).toBeVisible();
-      await roster.getByRole('button', { name: 'Forgive' }).click();
+      await roster.getByRole('button', { name: "Pardonner" }).click();
 
       await ahmed.page.reload();
-      await expect(ahmed.page.getByRole('button', { name: /join the game/i })).toBeVisible();
+      await expect(ahmed.page.getByRole('button', { name: /Rejoindre la partie/i })).toBeVisible();
     } finally {
       await closeAll(players);
     }

@@ -41,7 +41,9 @@ const authRoutes: FastifyPluginAsync = async (app) => {
   app.post(
     '/login',
     {
-      config: { policy: 'public', rateLimit: CREDENTIAL_RATE_LIMIT },
+      // The service owns failed credential budgets and resets them after success.
+      // The global request flood limit still bounds successful and malformed requests.
+      config: { policy: 'public' },
       schema: { response: { 200: sessionDtoJsonSchema } },
     },
     async (request, reply) => {

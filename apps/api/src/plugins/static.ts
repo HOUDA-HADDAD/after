@@ -36,6 +36,9 @@ const staticPlugin: FastifyPluginAsync<{ env: Env }> = async (app, { env }) => {
     maxAge: '1y',
     immutable: true,
     index: ['index.html'],
+    setHeaders(response, path) {
+      if (path.endsWith('.html')) response.setHeader('Cache-Control', 'no-cache');
+    },
   });
 
   app.log.info({ root }, 'serving web client');

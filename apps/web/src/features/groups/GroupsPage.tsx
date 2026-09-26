@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Users } from 'lucide-react';
@@ -15,6 +15,7 @@ export default function GroupsPage() {
   const plural = usePlural();
   const messageFor = useErrorMessage();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const groups = useQuery({ queryKey: queryKeys.groups, queryFn: listGroups });
 
   const [name, setName] = useState('');
@@ -30,6 +31,7 @@ export default function GroupsPage() {
       setName('');
       toast.success(t('rooms.created', { name: group.name }));
       await refreshGroups();
+      await navigate(`/groups/${group.id}`);
     },
     onError: (error: unknown) => {
       setNameError(messageFor(error));
@@ -42,6 +44,7 @@ export default function GroupsPage() {
       setCode('');
       toast.success(t('rooms.joined', { name: group.name }));
       await refreshGroups();
+      await navigate(`/groups/${group.id}`);
     },
     onError: (error: unknown) => {
       setCodeError(messageFor(error));

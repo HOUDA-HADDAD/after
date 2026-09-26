@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Check, Copy, RefreshCw } from 'lucide-react';
-import { cn } from '@aftergame/ui';
+import { Button, cn } from '@aftergame/ui';
+import { toast } from 'sonner';
 import { useT } from '../../../shared/i18n/LocaleProvider.js';
 
 /**
@@ -37,16 +38,17 @@ export function RoomCode({
   );
 
   if (code === undefined) {
-    return <span className="text-sm text-[var(--color-ink-muted)]">{t('room.noCode')}</span>;
+    return <span className="inline-flex flex-wrap items-center gap-3">
+      <span className="text-sm text-[var(--color-ink-muted)]">{t('room.noCode')}</span>
+      {canRegenerate && <Button size="sm" pending={regenerating} onClick={onRegenerate}>{t('room.generateCode')}</Button>}
+    </span>;
   }
 
   const copy = async (): Promise<void> => {
     try {
       await navigator.clipboard.writeText(code);
     } catch {
-      // Clipboard permission can be refused, and on an insecure origin the API is simply absent.
-      // The code is on screen either way, so the honest response is to say nothing and let them
-      // read it — not to raise an error about a convenience.
+      toast.error(t('room.copyFailed'));
       return;
     }
 

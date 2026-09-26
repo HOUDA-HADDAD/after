@@ -16,6 +16,7 @@ export type TranslationValues = Record<string, string | number>;
 
 export interface LocaleContextValue {
   locale: Locale;
+  canChangeLocale: boolean;
   setLocale: (locale: Locale) => void;
   t: (key: TranslationKey, values?: TranslationValues) => string;
 }
@@ -65,8 +66,9 @@ function interpolate(template: string, values?: TranslationValues): string {
  * (backends, lazy namespaces, ICU) this app has no use for. If plural rules beyond one/other are
  * ever needed, that is the moment to reconsider.
  */
-export function LocaleProvider({ children }: { children: ReactNode }) {
-  const [locale, setLocaleState] = useState<Locale>(initialLocale);
+export function LocaleProvider({ children, fixedLocale }: { children: ReactNode; fixedLocale?: Locale }) {
+  const [selectedLocale, setLocaleState] = useState<Locale>(initialLocale);
+  const locale = fixedLocale ?? selectedLocale;
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, locale);
@@ -85,8 +87,8 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
   );
 
   const value = useMemo<LocaleContextValue>(
-    () => ({ locale, setLocale, t }),
-    [locale, setLocale, t],
+    () => ({ locale, setLocale, t, canChangeLocale: fixedLocale === undefined }),
+    [locale, setLocale, t, fixedLocale],
   );
 
   return <LocaleContext value={value}>{children}</LocaleContext>;

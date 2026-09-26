@@ -4,6 +4,7 @@ import type { DbClient } from '../../lib/db.js';
 export interface CreateGroupInput {
   name: string;
   ownerId: string;
+  inviteCode?: string;
 }
 
 export type MembershipWithUser = GroupMembership & {
@@ -28,16 +29,24 @@ export const createGroupsRepository = (db: DbClient) => ({
    * Prisma wraps nested writes in a single transaction, so a group can never exist without an
    * owner — which is also what the `one owner per group` partial unique index assumes.
    */
-  async createWithOwner({ name, ownerId }: CreateGroupInput): Promise<Group> {
+  async createWithOwner({ name, ownerId, inviteCode }: CreateGroupInput): Promise<Group> {
     return db.group.create({
       data: {
         name,
         ownerId,
+        ...(inviteCode === undefined ? {} : {
+          invitations: { create: { code: inviteCode, createdById: ownerId } },
+        }),
         memberships: {
           create: { userId: ownerId, role: GroupRole.OWNER, status: MembershipStatus.ACTIVE },
         },
       },
     });
+  },
+
+  /** Serialize invitation replacement and membership admission for this group. */
+  async lockForUpdate(groupId: string): Promise<void> {
+    await db.$queryRaw`SELECT id FROM "groups" WHERE id = ${groupId}::uuid FOR UPDATE`;
   },
 
   /**

@@ -34,16 +34,16 @@ test.describe('a theme a group writes for itself', () => {
       // The summary is the control — clicking the <details> itself toggles nothing.
       await sarah.page
         .locator('summary')
-        .filter({ hasText: /room settings/i })
+        .filter({ hasText: /Paramètres de la salle/i })
         .click();
-      await sarah.page.getByRole('button', { name: /write a theme/i }).click();
+      await sarah.page.getByRole('button', { name: /Écrire un thème/i }).click();
 
-      await sarah.page.getByLabel('Name').fill('Unpopular opinions');
-      await sarah.page.getByLabel('Icon').fill('🌶️');
-      await sarah.page.getByLabel('Description').fill('Say the thing.');
-      await sarah.page.getByLabel('Write prompt').fill('Write an unpopular opinion');
-      await sarah.page.getByLabel('Answer prompt').fill('Defend it or demolish it');
-      await sarah.page.getByRole('button', { name: /add it to the picker/i }).click();
+      await sarah.page.getByLabel("Nom").fill('Unpopular opinions');
+      await sarah.page.getByLabel("Icône").fill('🌶️');
+      await sarah.page.getByLabel("Description").fill('Say the thing.');
+      await sarah.page.getByLabel("Consigne d’écriture").fill('Write an unpopular opinion');
+      await sarah.page.getByLabel("Consigne de réponse").fill('Defend it or demolish it');
+      await sarah.page.getByRole('button', { name: /Ajouter au sélecteur/i }).click();
 
       // Listed where it was written…
       await expect(sarah.page.locator('details').getByText('Unpopular opinions')).toBeVisible();
@@ -55,14 +55,14 @@ test.describe('a theme a group writes for itself', () => {
       await expect(sarah.page.getByRole('radio', { name: /Anecdotes/ })).toBeVisible();
 
       await option.click();
-      await sarah.page.getByRole('button', { name: /start game/i }).click();
+      await sarah.page.getByRole('button', { name: /Démarrer la partie/i }).click();
 
       // And onto the banner, which stays pinned for the whole game.
       await expect(sarah.page.getByRole('heading', { name: 'Unpopular opinions' })).toBeVisible();
 
       // The prompt a player is asked is the one that was typed on the previous screen.
       await joinGame(ahmed, (await liveSessionId(sarah, groupId)) ?? '');
-      await sarah.page.getByRole('button', { name: /start the game/i }).click();
+      await sarah.page.getByRole('button', { name: /Démarrer la partie/i }).click();
 
       await expect(
         sarah.page.getByRole('textbox', { name: 'Write an unpopular opinion' }),
@@ -147,37 +147,37 @@ test.describe('reactions', () => {
       });
 
       await sarah.page
-        .getByRole('button', { name: /React with 😂/ })
+        .getByRole('button', { name: /Réagir avec 😂/ })
         .first()
         .click();
 
       // Sarah's own button flips to the "remove" state…
       await expect(
-        sarah.page.getByRole('button', { name: /Remove your 😂 reaction/ }).first(),
+        sarah.page.getByRole('button', { name: /Retirer votre réaction 😂/ }).first(),
       ).toBeVisible();
 
       // …and ahmed sees the count, without having touched anything.
       await expect(
-        ahmed.page.getByRole('button', { name: /React with 😂, 1 so far/ }),
+        ahmed.page.getByRole('button', { name: /Réagir avec 😂, 1 pour l’instant/ }),
       ).toBeVisible();
       expect(
         await ahmed.page.evaluate(() => (window as unknown as { marker?: number }).marker),
       ).toBe(1);
 
       // He adds his own; the count reaches two for both of them.
-      await ahmed.page.getByRole('button', { name: /React with 😂, 1 so far/ }).click();
+      await ahmed.page.getByRole('button', { name: /Réagir avec 😂, 1 pour l’instant/ }).click();
 
       await expect(
-        sarah.page.getByRole('button', { name: /Remove your 😂 reaction/ }).first(),
+        sarah.page.getByRole('button', { name: /Retirer votre réaction 😂/ }).first(),
       ).toContainText('2');
 
       // Taking it back is the same button again — and it never removes anyone else's (D20).
       await ahmed.page
-        .getByRole('button', { name: /Remove your 😂 reaction/ })
+        .getByRole('button', { name: /Retirer votre réaction 😂/ })
         .first()
         .click();
       await expect(
-        sarah.page.getByRole('button', { name: /Remove your 😂 reaction/ }).first(),
+        sarah.page.getByRole('button', { name: /Retirer votre réaction 😂/ }).first(),
       ).toContainText('1');
     } finally {
       await closeAll(players);

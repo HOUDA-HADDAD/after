@@ -2,6 +2,7 @@ import {
   AppError,
   ConflictError,
   ERROR_CODES,
+  RateLimitedError,
   normaliseInviteCode,
   type GroupSummaryDto,
   type InvitationDto,
@@ -11,6 +12,7 @@ import type { Invitation } from '@prisma/client';
 import { assertCan } from '../../lib/authorize.js';
 import { generateInviteCode } from '../../lib/invite-code.js';
 import { isUniqueViolation } from '../../lib/db.js';
+import { createAttemptLimiter } from '../../lib/attempt-limiter.js';
 import type { TransactionRunner } from '../../plugins/prisma.js';
 import { requireActor } from '../groups/group-access.js';
 import { createGroupsRepository, type GroupsRepository } from '../groups/groups.repository.js';
@@ -65,6 +67,7 @@ export function createInvitationsService({
   env,
   now = () => new Date(),
 }: InvitationsServiceDeps) {
+  const redemptionLimiter = createAttemptLimiter({ max: 10, windowMs: 60 * 60 * 1000 });
   return {
     async create(
       groupId: string,
@@ -81,12 +84,19 @@ export function createInvitationsService({
 
       for (let attempt = 0; attempt < CODE_GENERATION_ATTEMPTS; attempt += 1) {
         try {
-          const invitation = await invitations.create({
+          const invitation = await transaction(async (tx) => {
+            const scopedGroups = createGroupsRepository(tx);
+            const scopedInvitations = createInvitationsRepository(tx);
+            await scopedGroups.lockForUpdate(groupId);
+            assertCan('invitation:create', await requireActor(scopedGroups, groupId, userId));
+            await scopedInvitations.revokeAll(groupId, now());
+            return scopedInvitations.create({
             groupId,
             code: generateInviteCode(),
             createdById: userId,
             expiresAt,
             maxUses: options.maxUses,
+            });
           });
 
           return toDto(invitation);
@@ -126,28 +136,27 @@ export function createInvitationsService({
      * what tapping an old link a second time should do.
      */
     async redeem(rawCode: string, userId: string): Promise<GroupSummaryDto> {
+      if (env.RATE_LIMIT_ENABLED && !redemptionLimiter.consume(userId)) {
+        throw new RateLimitedError('Too many invitation attempts. Try again later.');
+      }
       const code = normaliseInviteCode(rawCode);
       const invitation = await invitations.findByCode(code);
 
       if (invitation === null) throw unusableCode();
 
-      const existing = await groups.findMembership(invitation.groupId, userId);
-
-      if (existing !== null) {
-        return this.summaryFor(invitation.groupId, userId);
-      }
-
-      if ((await groups.countMembers(invitation.groupId)) >= env.MAX_GROUP_MEMBERS) {
-        throw new ConflictError(
-          ERROR_CODES.GROUP_FULL,
-          'That group is full',
-          `Groups can hold up to ${String(env.MAX_GROUP_MEMBERS)} people.`,
-        );
-      }
-
       await transaction(async (tx) => {
         const scopedInvitations = createInvitationsRepository(tx);
         const scopedGroups = createGroupsRepository(tx);
+
+        await scopedGroups.lockForUpdate(invitation.groupId);
+        const current = await scopedInvitations.findById(invitation.id);
+        if (current === null || current.revokedAt !== null ||
+          (current.expiresAt !== null && current.expiresAt <= now()) ||
+          (current.maxUses !== null && current.useCount >= current.maxUses)) throw unusableCode();
+        if (await scopedGroups.findMembership(invitation.groupId, userId) !== null) return;
+        if (await scopedGroups.countMembers(invitation.groupId) >= env.MAX_GROUP_MEMBERS) {
+          throw new ConflictError(ERROR_CODES.GROUP_FULL, 'That group is full');
+        }
 
         // Claim first: if the invitation turns out to be unusable, no membership is created.
         if (!(await scopedInvitations.claimUse(invitation.id, now()))) {

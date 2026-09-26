@@ -137,6 +137,7 @@ describe('the room header', () => {
 
     expect(await screen.findByText('No active code')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^Copy code/ })).not.toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Generate new code' })).toBeEnabled();
   });
 });
 

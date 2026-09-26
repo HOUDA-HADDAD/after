@@ -48,6 +48,7 @@ export interface AuthServiceDeps {
   passwords: PasswordHasher;
   /** Per-account credential limiter; see lib/attempt-limiter.ts. */
   loginLimiter: AttemptLimiter;
+  ipLoginLimiter?: AttemptLimiter;
   env: Env;
   now?: () => Date;
 }
@@ -60,6 +61,7 @@ export function createAuthService({
   repository,
   passwords,
   loginLimiter,
+  ipLoginLimiter,
   env,
   now = () => new Date(),
 }: AuthServiceDeps) {
@@ -144,6 +146,10 @@ export function createAuthService({
       const email = input.email.trim();
       const limiterKey = email.toLowerCase();
 
+      if (context.ip !== undefined && ipLoginLimiter !== undefined && !ipLoginLimiter.consume(context.ip)) {
+        throw new RateLimitedError('Too many failed sign-in attempts. Try again later.');
+      }
+
       if (!loginLimiter.consume(limiterKey)) {
         throw new RateLimitedError('Too many sign-in attempts for this account. Try again later.');
       }
@@ -161,6 +167,7 @@ export function createAuthService({
 
       // One forgotten password should not lock the account out for the rest of the window.
       loginLimiter.reset(limiterKey);
+      if (context.ip !== undefined) ipLoginLimiter?.reset(context.ip);
 
       return issueSession(user, context);
     },
@@ -196,7 +203,7 @@ export function createAuthService({
       }
 
       const renewedExpiresAt = new Date(current.getTime() + ttlMs);
-      await repository.touchSession(session.id, renewedExpiresAt, current);
+      if (!(await repository.touchSession(session.id, renewedExpiresAt, current))) return null;
 
       return { user: session.user, sessionId: session.id, renewedExpiresAt };
     },

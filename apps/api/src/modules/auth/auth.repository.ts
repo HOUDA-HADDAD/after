@@ -56,11 +56,12 @@ export const createAuthRepository = (db: DbClient) => ({
   },
 
   /** Sliding expiry. Called at most once an hour per session, not on every request. */
-  async touchSession(id: string, expiresAt: Date, now: Date): Promise<void> {
-    await db.authSession.update({
-      where: { id },
+  async touchSession(id: string, expiresAt: Date, now: Date): Promise<boolean> {
+    const { count } = await db.authSession.updateMany({
+      where: { id, expiresAt: { gt: now } },
       data: { expiresAt, lastUsedAt: now },
     });
+    return count === 1;
   },
 
   async deleteSessionByTokenHash(tokenHash: TokenHash): Promise<void> {

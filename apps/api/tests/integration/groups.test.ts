@@ -539,7 +539,7 @@ describe('groups, members and invitations', () => {
       await api(owner.token, 'DELETE', `/groups/${groupId}/invitations/${first.id as string}`);
 
       const listed = (await api(owner.token, 'GET', `/groups/${groupId}/invitations`)).json();
-      expect(listed.invitations).toHaveLength(2);
+      expect(listed.invitations).toHaveLength(1);
     });
 
     it('refuses to revoke an invitation belonging to another group', async () => {

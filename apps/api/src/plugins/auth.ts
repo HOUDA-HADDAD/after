@@ -52,6 +52,7 @@ const authPlugin: FastifyPluginAsync<{ env: Env }> = async (app, { env }) => {
   const auth = createAuthService({
     repository: createAuthRepository(app.prisma),
     passwords,
+    ...(env.RATE_LIMIT_ENABLED ? { ipLoginLimiter: createAttemptLimiter({ max: 5, windowMs: 15 * 60 * 1000 }) } : {}),
     loginLimiter: createAttemptLimiter({
       max: LOGIN_ATTEMPTS_PER_ACCOUNT,
       windowMs: LOGIN_ATTEMPT_WINDOW_MS,

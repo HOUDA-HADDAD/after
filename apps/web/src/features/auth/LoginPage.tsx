@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { loginSchema } from '@aftergame/shared';
 import { useSession } from './SessionProvider.js';
@@ -23,9 +23,11 @@ export default function LoginPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const submitting = useRef(false);
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
+    if (submitting.current) return;
     setFormError(null);
 
     // The same schema the API validates with, so the client cannot build a request the server
@@ -43,6 +45,7 @@ export default function LoginPage() {
     }
 
     setErrors({});
+    submitting.current = true;
     setPending(true);
 
     try {
@@ -57,6 +60,7 @@ export default function LoginPage() {
       setErrors(issues);
       focusFirstInvalid(FIELD_ORDER, issues);
     } finally {
+      submitting.current = false;
       setPending(false);
     }
   };

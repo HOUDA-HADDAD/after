@@ -62,7 +62,7 @@ export interface BuildAppOptions {
 export async function buildApp({ env, prismaClient }: BuildAppOptions): Promise<FastifyInstance> {
   const app = Fastify({
     genReqId: generateRequestId,
-    trustProxy: env.NODE_ENV === 'production',
+    trustProxy: env.NODE_ENV === 'production' ? 1 : false,
     bodyLimit: 128 * 1024,
     logger: {
       level: env.LOG_LEVEL,

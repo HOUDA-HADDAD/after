@@ -88,7 +88,7 @@ export function useDictation(onTranscript: (chunk: string) => void): Dictation {
 
     const instance = new Recognition();
 
-    instance.lang = navigator.language;
+    instance.lang = document.documentElement.lang || 'fr';
     instance.continuous = true;
     instance.interimResults = true;
 

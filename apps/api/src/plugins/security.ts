@@ -112,7 +112,7 @@ const securityPlugin: FastifyPluginAsync<{ env: Env }> = async (app, { env }) =>
       global: true,
       max: 300,
       timeWindow: '1 minute',
-      // Authenticated users get their own budget; everyone else shares one per IP.
+      // Broad flood limit. Credential failure budgets are enforced separately by auth.
       keyGenerator: (request) => request.ip,
     });
   }
@@ -128,7 +128,7 @@ const securityPlugin: FastifyPluginAsync<{ env: Env }> = async (app, { env }) =>
     if (!MUTATING_METHODS.has(request.method)) return;
 
     const origin = request.headers.origin;
-    if (origin === undefined) return;
+    if (origin === undefined && request.headers['sec-fetch-site'] !== 'cross-site') return;
     if (origin === env.APP_ORIGIN) return;
 
     request.log.warn({ origin, method: request.method }, 'rejected cross-origin mutation');

@@ -9,6 +9,7 @@ import {
 } from 'react';
 import type { LoginInput, RegisterInput, SessionDto, UserDto } from '@aftergame/shared';
 import { ApiError, apiFetch, apiPost } from '../../shared/api/client.js';
+import { useQueryClient } from '@tanstack/react-query';
 
 export type SessionState =
   { status: 'loading' } | { status: 'anonymous' } | { status: 'authenticated'; user: UserDto };
@@ -31,6 +32,7 @@ const SessionContext = createContext<SessionContextValue | null>(null);
  * truth, which is why every protected action is still authorised server-side.
  */
 export function SessionProvider({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient();
   const [state, setState] = useState<SessionState>({ status: 'loading' });
 
   useEffect(() => {
@@ -57,22 +59,21 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const register = useCallback(async (input: RegisterInput) => {
     const session = await apiPost<SessionDto>('/auth/register', input);
+    queryClient.clear();
     setState({ status: 'authenticated', user: session.user });
-  }, []);
+  }, [queryClient]);
 
   const login = useCallback(async (input: LoginInput) => {
     const session = await apiPost<SessionDto>('/auth/login', input);
+    queryClient.clear();
     setState({ status: 'authenticated', user: session.user });
-  }, []);
+  }, [queryClient]);
 
   const logout = useCallback(async () => {
-    try {
-      await apiPost<void>('/auth/logout');
-    } finally {
-      // Whatever the server said, this browser is signed out — logging out must never fail.
-      setState({ status: 'anonymous' });
-    }
-  }, []);
+    await apiPost<void>('/auth/logout');
+    queryClient.clear();
+    setState({ status: 'anonymous' });
+  }, [queryClient]);
 
   const value = useMemo(
     () => ({ state, register, login, logout }),

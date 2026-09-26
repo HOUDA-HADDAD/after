@@ -3,6 +3,7 @@ import { Server, type Socket } from 'socket.io';
 import { SESSION_COOKIE_NAME, SESSION_COOKIE_NAME_INSECURE } from '@aftergame/shared';
 import type { FastifyPluginAsync } from 'fastify';
 import type { Env } from '@aftergame/config';
+import { createAttemptLimiter } from '../lib/attempt-limiter.js';
 
 declare module 'fastify' {
   interface FastifyInstance {
@@ -19,7 +20,9 @@ function cookieFromHandshake(header: string | undefined, name: string): string {
 
   for (const part of header.split(';')) {
     const [key, ...rest] = part.trim().split('=');
-    if (key === name) return decodeURIComponent(rest.join('='));
+    if (key === name) {
+      try { return decodeURIComponent(rest.join('=')); } catch { return ''; }
+    }
   }
 
   return '';
@@ -48,6 +51,10 @@ const realtimePlugin: FastifyPluginAsync<{ env: Env }> = async (app, { env }) =>
     path: '/socket.io',
     // Same origin in every environment, so there is no CORS to configure.
     serveClient: false,
+    allowRequest: (request, callback) => {
+      const origin = request.headers.origin;
+      callback(null, origin === env.APP_ORIGIN || (origin === undefined && request.headers['sec-fetch-site'] !== 'cross-site'));
+    },
   });
 
   /**
@@ -85,6 +92,34 @@ const realtimePlugin: FastifyPluginAsync<{ env: Env }> = async (app, { env }) =>
 
   const currentUser = (socket: Socket): string => stateOf(socket).userId ?? '';
 
+  const hasLiveSession = async (socket: Socket): Promise<boolean> => {
+    const resolved = await app.auth.resolve(cookieFromHandshake(socket.handshake.headers.cookie, cookieName));
+    if (resolved?.user.id === currentUser(socket)) return true;
+    socket.disconnect(true);
+    return false;
+  };
+
+  // Membership and session revocation also apply to sockets already in a room.
+  // Recheck before delivery; otherwise a removed member keeps observing game activity.
+  const emitAuthorized = (room: string, event: string, payload: object): void => {
+    for (const id of io.sockets.adapter.rooms.get(room) ?? []) {
+      const socket = io.sockets.sockets.get(id);
+      if (socket === undefined) continue;
+      void (async () => {
+        try {
+          if (!(await hasLiveSession(socket))) return;
+          if (room.startsWith('group:')) await app.groups.detail(room.slice(6), currentUser(socket));
+          else await app.sessions.requireSession(room.slice(8), currentUser(socket));
+          if (socket.connected && socket.rooms.has(room)) socket.emit(event, payload);
+        } catch {
+          await socket.leave(room);
+        }
+      })();
+    }
+  };
+
+  const subscriptionLimiter = createAttemptLimiter({ max: 60, windowMs: 60_000 });
+
   io.on('connection', (socket) => {
     /**
      * Room membership is authorized on every join, never trusted from the client.
@@ -93,22 +128,28 @@ const realtimePlugin: FastifyPluginAsync<{ env: Env }> = async (app, { env }) =>
      * requester could not already read.
      */
     socket.on('subscribe:group', (groupId: unknown) => {
-      if (typeof groupId !== 'string') return;
+      if (typeof groupId !== 'string' || groupId.length !== 36 || !subscriptionLimiter.consume(currentUser(socket))) return;
 
-      app.groups
-        .detail(groupId, currentUser(socket))
-        .then(() => socket.join(groupRoom(groupId)))
+      hasLiveSession(socket)
+        .then(async (valid) => {
+          if (!valid) return;
+          await app.groups.detail(groupId, currentUser(socket));
+          await socket.join(groupRoom(groupId));
+        })
         .catch(() => {
           // Not a member: silently ignore rather than confirm the group exists.
         });
     });
 
     socket.on('subscribe:session', (sessionId: unknown) => {
-      if (typeof sessionId !== 'string') return;
+      if (typeof sessionId !== 'string' || sessionId.length !== 36 || !subscriptionLimiter.consume(currentUser(socket))) return;
 
-      app.sessions
-        .getState(sessionId, currentUser(socket))
-        .then(() => socket.join(sessionRoom(sessionId)))
+      hasLiveSession(socket)
+        .then(async (valid) => {
+          if (!valid) return;
+          await app.sessions.requireSession(sessionId, currentUser(socket));
+          await socket.join(sessionRoom(sessionId));
+        })
         .catch(() => {
           // Not entitled: same silence.
         });
@@ -117,18 +158,21 @@ const realtimePlugin: FastifyPluginAsync<{ env: Env }> = async (app, { env }) =>
     socket.on('unsubscribe:session', (sessionId: unknown) => {
       if (typeof sessionId === 'string') void socket.leave(sessionRoom(sessionId));
     });
+    socket.on('unsubscribe:group', (groupId: unknown) => {
+      if (typeof groupId === 'string') void socket.leave(groupRoom(groupId));
+    });
   });
 
   /* ---- bus → rooms ---------------------------------------------------------------------- */
 
   app.events.on('session.phase_changed', (payload) => {
-    io.to(sessionRoom(payload.sessionId)).emit('session:changed', { sessionId: payload.sessionId });
-    io.to(groupRoom(payload.groupId)).emit('group:changed', { groupId: payload.groupId });
+    emitAuthorized(sessionRoom(payload.sessionId), 'session:changed', { sessionId: payload.sessionId });
+    emitAuthorized(groupRoom(payload.groupId), 'group:changed', { groupId: payload.groupId });
   });
 
   app.events.on('session.progress', (payload) => {
     // Counts only. "6 of 8", never "Sarah submitted" — the aggregate is the whole point.
-    io.to(sessionRoom(payload.sessionId)).emit('session:progress', {
+    emitAuthorized(sessionRoom(payload.sessionId), 'session:progress', {
       sessionId: payload.sessionId,
       submitted: payload.submitted,
       required: payload.required,
@@ -136,18 +180,18 @@ const realtimePlugin: FastifyPluginAsync<{ env: Env }> = async (app, { env }) =>
   });
 
   app.events.on('session.roster_changed', (payload) => {
-    io.to(sessionRoom(payload.sessionId)).emit('session:changed', { sessionId: payload.sessionId });
-    io.to(groupRoom(payload.groupId)).emit('group:changed', { groupId: payload.groupId });
+    emitAuthorized(sessionRoom(payload.sessionId), 'session:changed', { sessionId: payload.sessionId });
+    emitAuthorized(groupRoom(payload.groupId), 'group:changed', { groupId: payload.groupId });
   });
 
   app.events.on('timeline.comment_added', (payload) => {
     // The comment itself is not sent; clients refetch the timeline through the projection.
-    io.to(sessionRoom(payload.sessionId)).emit('session:changed', { sessionId: payload.sessionId });
+    emitAuthorized(sessionRoom(payload.sessionId), 'session:changed', { sessionId: payload.sessionId });
   });
 
   app.events.on('session.reveal_progress', (payload) => {
     // `decided / total` and nothing else. The split is never computed, so it cannot be sent (D8a).
-    io.to(sessionRoom(payload.sessionId)).emit('session:reveal-progress', {
+    emitAuthorized(sessionRoom(payload.sessionId), 'session:reveal-progress', {
       sessionId: payload.sessionId,
       decided: payload.decided,
       total: payload.total,
@@ -155,7 +199,7 @@ const realtimePlugin: FastifyPluginAsync<{ env: Env }> = async (app, { env }) =>
   });
 
   app.events.on('group.session_changed', (payload) => {
-    io.to(groupRoom(payload.groupId)).emit('group:changed', { groupId: payload.groupId });
+    emitAuthorized(groupRoom(payload.groupId), 'group:changed', { groupId: payload.groupId });
   });
 
   app.decorate('io', io);

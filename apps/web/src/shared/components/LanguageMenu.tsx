@@ -25,7 +25,8 @@ const NAME_KEY = { en: 'language.en', fr: 'language.fr' } as const satisfies Rec
  * styling wraps it; the behaviour is the browser's.
  */
 export function LanguageMenu({ className }: { className?: string }) {
-  const { locale, setLocale, t } = useLocale();
+  const { locale, setLocale, t, canChangeLocale } = useLocale();
+  if (!canChangeLocale) return null;
 
   return (
     <div className={cn('relative', className)}>

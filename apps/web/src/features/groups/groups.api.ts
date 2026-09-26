@@ -29,6 +29,9 @@ export const listInvitations = async (groupId: string): Promise<InvitationDto[]>
 export const createInvitation = (groupId: string): Promise<InvitationDto> =>
   apiPost<InvitationDto>(`/groups/${groupId}/invitations`, { expiresInHours: null, maxUses: null });
 
+export const revokeInvitation = (groupId: string, invitationId: string): Promise<void> =>
+  apiFetch<void>(`/groups/${groupId}/invitations/${invitationId}`, { method: 'DELETE' });
+
 export interface PunishmentEventDto {
   id: string;
   action: 'PUNISH' | 'FORGIVE' | 'AUTO_RESET';

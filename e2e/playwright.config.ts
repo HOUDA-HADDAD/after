@@ -44,7 +44,7 @@ export default defineConfig({
   ],
 
   webServer: {
-    command: 'pnpm --filter @aftergame/api exec tsx scripts/e2e-server.ts',
+    command: 'node ../apps/api/node_modules/tsx/dist/cli.mjs ../apps/api/scripts/e2e-server.ts',
     url: `${baseURL}/healthz`,
     // Embedded PostgreSQL has to boot, migrate and seed before the first request.
     timeout: 180_000,

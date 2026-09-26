@@ -15,6 +15,7 @@ import { ThemeManager } from './ThemeManager.js';
 import { PunishmentHistory } from './PunishmentHistory.js';
 import {
   createInvitation,
+  revokeInvitation,
   forgiveMember,
   getGroup,
   leaveGroup,
@@ -58,6 +59,7 @@ export default function GroupDetailPage() {
     queryKey: queryKeys.invitations(groupId),
     queryFn: () => listInvitations(groupId),
     enabled: isHost,
+    refetchInterval: 30_000,
   });
 
   const refresh = async (): Promise<void> => {
@@ -77,14 +79,23 @@ export default function GroupDetailPage() {
   });
 
   const newCode = useMutation({
-    mutationFn: () => createInvitation(groupId),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.invitations(groupId) });
+    mutationFn: (id: string) => createInvitation(id),
+    onSuccess: async (_invitation, id) => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.invitations(id) });
     },
     onError: (error: unknown) => {
       toast.error(messageFor(error));
     },
   });
+
+  const revokeCode = useMutation({
+    mutationFn: ({ id, invitationId }: { id: string; invitationId: string }) => revokeInvitation(id, invitationId),
+    onSuccess: async (_result, { id }) => { await queryClient.invalidateQueries({ queryKey: queryKeys.invitations(id) }); },
+    onError: (error: unknown) => { toast.error(messageFor(error)); },
+  });
+  const invitation = invitations.data?.find(entry =>
+    (entry.expiresAt === null || new Date(entry.expiresAt).getTime() > Date.now()) &&
+    (entry.maxUses === null || entry.useCount < entry.maxUses));
 
   const leave = useMutation({
     mutationFn: () => leaveGroup(groupId),
@@ -122,16 +133,27 @@ export default function GroupDetailPage() {
   return (
     <div className="mx-auto flex max-w-[1100px] flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
       <RoomHeader
+        key={`header-${groupId}`}
         group={group.data}
-        code={invitations.data?.[0]?.code}
-        canRegenerate={isHost}
-        regenerating={newCode.isPending}
+        code={invitation?.code}
+        canRegenerate={isHost && !invitations.isPending && !invitations.isError}
+        regenerating={newCode.isPending || revokeCode.isPending}
         onRegenerate={() => {
-          newCode.mutate();
+          newCode.mutate(groupId);
         }}
       />
 
+      {isHost ? <div className="flex flex-wrap items-center gap-3 text-sm text-[var(--color-ink-muted)]">
+        {invitations.isPending ? <p>{t('room.codeLoading')}</p> : invitations.isError ? <p role="alert">{messageFor(invitations.error)}</p> : invitation ? <>
+          <p>{t('room.activeCode')} · {invitation.expiresAt === null ? t('room.noExpiry') : t('room.expires', { date: new Date(invitation.expiresAt).toLocaleString('fr-FR') })}</p>
+          <Button size="sm" variant="danger" pending={revokeCode.isPending} disabled={newCode.isPending}
+            onClick={() => revokeCode.mutate({ id: groupId, invitationId: invitation.id })}>{t('room.revokeCode')}</Button>
+        </> : null}
+        <p className="w-full">{t('room.revokeHint')}</p>
+      </div> : <p className="text-sm text-[var(--color-ink-muted)]">{t('room.codeRestricted')}</p>}
+
       <LobbyPanel
+        key={`lobby-${groupId}`}
         groupId={groupId}
         members={group.data.members}
         viewerRole={group.data.viewerRole}

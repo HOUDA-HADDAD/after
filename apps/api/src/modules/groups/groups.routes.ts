@@ -204,7 +204,7 @@ const groupRoutes: FastifyPluginAsync = async (app) => {
   app.post<{ Params: GroupParams }>(
     '/:groupId/invitations',
     {
-      config: { policy: 'invitation:create' },
+      config: { policy: 'invitation:create', rateLimit: { max: 20, timeWindow: '1 hour' } },
       schema: { response: { 201: invitationJsonSchema } },
     },
     async (request, reply) => {

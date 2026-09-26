@@ -33,7 +33,7 @@ test.describe('a dropped connection', () => {
       await startGame(sarah, sessionId);
 
       await sarah.page.goto(gameUrl(groupId, sessionId));
-      await expect(sarah.page.getByText('0 / 2 texts in')).toBeVisible();
+      await expect(sarah.page.getByText('0 / 2 textes reçus')).toBeVisible();
 
       // Live first. Without this the offline assertion below would also pass on a socket that
       // never connected at all — the badge says "Connecting…" in both cases.
@@ -49,14 +49,14 @@ test.describe('a dropped connection', () => {
       await sarah.context.setOffline(true);
 
       // The status appears only when it is actionable, which is precisely now.
-      await expect(sarah.page.getByRole('status')).toHaveText(/reconnecting/i, { timeout: 30_000 });
+      await expect(sarah.page.getByRole('status')).toHaveText(/Reconnexion…/i, { timeout: 30_000 });
 
       // The world moves on while she is away, and her tab has no way to know it.
       await api(ahmed).post(`/api/v1/sessions/${sessionId}/text/submit`, {
         data: { body: 'ahmed wrote this while sarah was offline.' },
       });
 
-      await expect(sarah.page.getByText('0 / 2 texts in')).toBeVisible();
+      await expect(sarah.page.getByText('0 / 2 textes reçus')).toBeVisible();
 
       /* ---- and comes back ---------------------------------------------------------------- */
 
@@ -64,7 +64,7 @@ test.describe('a dropped connection', () => {
 
       // The missed change arrives on reconnect: the socket rejoins its room and the cache is
       // invalidated, so the counter catches up on its own.
-      await expect(sarah.page.getByText('1 / 2 texts in')).toBeVisible({ timeout: 60_000 });
+      await expect(sarah.page.getByText('1 / 2 textes reçus')).toBeVisible({ timeout: 60_000 });
       await expect(sarah.page.getByRole('status')).toHaveCount(0);
 
       // …and it was a resync, not a reload. This is the Phase 7 exit criterion, in a browser.
@@ -74,7 +74,7 @@ test.describe('a dropped connection', () => {
 
       // The game is still usable afterwards, which is the part that actually matters.
       await sarah.page.getByRole('textbox', { name: prompts.write }).fill('sarah came back.');
-      await sarah.page.getByRole('button', { name: /submit my text/i }).click();
+      await sarah.page.getByRole('button', { name: /Envoyer mon texte/i }).click();
       await expect(sarah.page.getByRole('textbox', { name: prompts.answer })).toBeVisible({
         timeout: 30_000,
       });
@@ -138,7 +138,7 @@ test.describe('a player who never comes back', () => {
       for (const player of [sarah, ahmed]) {
         if (player === sarah) {
           await sarah.page.getByRole('textbox', { name: prompts.write }).fill('sarah wrote this.');
-          await sarah.page.getByRole('button', { name: /submit my text/i }).click();
+          await sarah.page.getByRole('button', { name: /Envoyer mon texte/i }).click();
         } else {
           await api(player).post(`/api/v1/sessions/${sessionId}/text/submit`, {
             data: { body: 'ahmed wrote this.' },
@@ -147,20 +147,20 @@ test.describe('a player who never comes back', () => {
       }
 
       // D14: the host can always move the game on, so one absent player cannot end it.
-      await sarah.page.getByRole('button', { name: /deal the texts now/i }).click();
+      await sarah.page.getByRole('button', { name: /Distribuer les textes/i }).click();
       await expect(sarah.page.getByRole('textbox', { name: prompts.answer })).toBeVisible({
         timeout: 20_000,
       });
 
       await sarah.page.getByRole('textbox', { name: prompts.answer }).fill('sarah answered.');
-      await sarah.page.getByRole('button', { name: /submit answer/i }).click();
+      await sarah.page.getByRole('button', { name: /Envoyer la réponse/i }).click();
 
-      await sarah.page.getByRole('button', { name: /move on to the results/i }).click();
+      await sarah.page.getByRole('button', { name: /Passer aux résultats/i }).click();
 
       // lina's assignment was never answered, and the timeline says so rather than hiding it.
-      await expect(sarah.page.getByText(/no answer/i).first()).toBeVisible({ timeout: 20_000 });
+      await expect(sarah.page.getByText(/Pas de réponse/i).first()).toBeVisible({ timeout: 20_000 });
       // Two texts in the pile, because lina never wrote one.
-      await expect(sarah.page.getByText('Written anonymously')).toHaveCount(2);
+      await expect(sarah.page.getByText("Écrit anonymement")).toHaveCount(2);
     } finally {
       await closeAll(players);
     }
@@ -179,11 +179,11 @@ test.describe('a game that is gone', () => {
       await sarah.page.goto(gameUrl(groupId, '00000000-0000-4000-8000-000000000000'));
 
       await expect(
-        sarah.page.getByRole('heading', { name: /ended and been deleted/i }),
+        sarah.page.getByRole('heading', { name: /terminée et a été supprimée/i }),
       ).toBeVisible();
-      await expect(sarah.page.getByText(/that was the deal when you played it/i)).toBeVisible();
+      await expect(sarah.page.getByText(/Les parties terminées ne restent pas — c’était l’accord quand vous y avez joué\./i)).toBeVisible();
 
-      await sarah.page.getByRole('button', { name: /back to the room/i }).click();
+      await sarah.page.getByRole('button', { name: /Retour à la salle/i }).click();
       await expect(sarah.page.getByRole('heading', { name: 'Friday Night' })).toBeVisible();
     } finally {
       await closeAll([sarah]);

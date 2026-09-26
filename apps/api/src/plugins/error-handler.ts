@@ -23,7 +23,7 @@ const toFieldErrors = (error: FastifyError): Record<string, string[]> => {
   for (const issue of error.validation ?? []) {
     // instancePath looks like "/body/text"; fall back to the whole request.
     const field = issue.instancePath.replace(/^\//, '').replaceAll('/', '.') || 'request';
-    const message = issue.message ?? 'is invalid';
+    const message = 'La valeur saisie est invalide.';
     fields[field] = [...(fields[field] ?? []), message];
   }
 
@@ -64,10 +64,10 @@ const errorHandlerPlugin: FastifyPluginAsync<{ env: Env }> = async (app, { env }
 
     // Malformed JSON and similar client mistakes arrive as 4xx without `validation`.
     if (error.statusCode !== undefined && error.statusCode >= 400 && error.statusCode < 500) {
-      return send(reply, new ValidationError({ request: [error.message] }).toProblem(request.id));
+      return send(reply, new ValidationError({ request: ['La requête est invalide.'] }).toProblem(request.id));
     }
 
-    request.log.error({ err: error }, 'unhandled error');
+    request.log.error({ errorName: error.name, errorCode: error.code }, 'unhandled error');
     return send(reply, new InternalError(error).toProblem(request.id));
   });
 

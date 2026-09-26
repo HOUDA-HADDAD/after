@@ -13,7 +13,7 @@ test.describe('the served application', () => {
 
     // Unauthenticated, so the app sends you to sign in — which proves the SPA booted and its
     // router ran, not merely that a file was returned.
-    await expect(page.getByRole('heading', { name: /sign in/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /Connexion/i })).toBeVisible();
   });
 
   test('serves a deep link into a client route', async ({ page }) => {

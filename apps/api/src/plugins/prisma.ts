@@ -71,7 +71,8 @@ function createClient(app: FastifyInstance, env: Env): PrismaClient {
     app.log.warn({ target: event.target }, event.message);
   });
   prisma.$on('error', (event) => {
-    app.log.error({ target: event.target }, event.message);
+    // Prisma error messages can include bound values or rejected rows.
+    app.log.error({ target: event.target }, 'database operation failed');
   });
 
   return prisma;

@@ -16,6 +16,7 @@ const testQueryClient = (): QueryClient =>
   });
 
 export interface RenderOptions {
+  fixedLocale?: 'en' | 'fr';
   /** Initial URL, so a route with params can be exercised. */
   route?: string;
   /** The path pattern the element is mounted at. */
@@ -24,11 +25,11 @@ export interface RenderOptions {
 
 export function renderWithProviders(
   ui: ReactNode,
-  { route = '/', path = '/' }: RenderOptions = {},
+  { route = '/', path = '/', fixedLocale }: RenderOptions = {},
 ): RenderResult {
   return render(
     <QueryClientProvider client={testQueryClient()}>
-      <LocaleProvider>
+      <LocaleProvider {...(fixedLocale === undefined ? {} : { fixedLocale })}>
         <MemoryRouter initialEntries={[route]}>
           <SocketProvider>
             <Routes>

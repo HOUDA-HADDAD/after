@@ -1,5 +1,6 @@
 import {
   ERROR_CODES,
+  ConflictError,
   NotFoundError,
   type GroupDetailDto,
   type GroupSummaryDto,
@@ -9,6 +10,8 @@ import { assertCan } from '../../lib/authorize.js';
 import { requireActor } from './group-access.js';
 import { toGroupDetailDto, toGroupSummaryDto } from './groups.mapper.js';
 import type { GroupsRepository } from './groups.repository.js';
+import { generateInviteCode } from '../../lib/invite-code.js';
+import { isUniqueViolation } from '../../lib/db.js';
 
 export interface GroupsServiceDeps {
   groups: GroupsRepository;
@@ -18,15 +21,22 @@ export interface GroupsServiceDeps {
 export function createGroupsService({ groups, env }: GroupsServiceDeps) {
   return {
     async create(userId: string, name: string): Promise<GroupSummaryDto> {
-      const group = await groups.createWithOwner({ name, ownerId: userId });
-
-      return {
+      for (let attempt = 0; attempt < 5; attempt += 1) {
+        try {
+          const group = await groups.createWithOwner({ name, ownerId: userId, inviteCode: generateInviteCode() });
+          return {
         id: group.id,
         name: group.name,
         memberCount: 1,
         viewerRole: 'OWNER',
         createdAt: group.createdAt.toISOString(),
-      };
+          };
+        } catch (error) {
+          // The nested write rolls back the group and owner as well as the colliding code.
+          if (!isUniqueViolation(error, 'code')) throw error;
+        }
+      }
+      throw new ConflictError(ERROR_CODES.CONFLICT, 'Could not generate a code. Try again.');
     },
 
     async listForUser(userId: string): Promise<GroupSummaryDto[]> {

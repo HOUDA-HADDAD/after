@@ -10,6 +10,8 @@ import { GroupSidebar } from './GroupSidebar.js';
 import { DESKTOP_QUERY, useMediaQuery } from '../hooks/useMediaQuery.js';
 import { LanguageMenu } from './LanguageMenu.js';
 import { useT } from '../i18n/LocaleProvider.js';
+import { toast } from 'sonner';
+import { useErrorMessage } from '../lib/error-copy.js';
 
 /**
  * The application shell.
@@ -141,6 +143,7 @@ function TopBar({
 }) {
   const t = useT();
   const { state, logout } = useSession();
+  const messageFor = useErrorMessage();
   const { theme, toggle } = useTheme();
   const { connection } = useSocket();
 
@@ -194,7 +197,7 @@ function TopBar({
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => void logout()}
+          onClick={() => void logout().catch((error: unknown) => toast.error(messageFor(error)))}
           aria-label={t('shell.signOut')}
         >
           <LogOut size={16} aria-hidden="true" />

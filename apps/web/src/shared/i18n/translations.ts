@@ -16,6 +16,15 @@ export const en = {
   'language.fr': 'Français',
 
   /* ---- room header ------------------------------------------------------------------------- */
+  'room.copyFailed': 'Copy failed. Select and copy the displayed code.',
+  'room.owner': 'Owner: {name}',
+  'room.activeCode': 'Active invitation code',
+  'room.expires': 'Expires: {date}',
+  'room.noExpiry': 'No expiration date',
+  'room.revokeCode': 'Revoke code',
+  'room.revokeHint': 'Generating a new code revokes previous codes.',
+  'room.codeLoading': 'Loading invitation…',
+  'room.codeRestricted': 'Ask a host for an invitation code.',
   'room.code': 'Code',
   'room.copyCode': 'Copy code',
   'room.codeCopied': 'Copied',
@@ -297,6 +306,15 @@ export const en = {
 export type TranslationKey = keyof typeof en;
 
 export const fr: Record<TranslationKey, string> = {
+  'room.copyFailed': 'Copie impossible. Sélectionnez et copiez le code affiché.',
+  'room.owner': 'Propriétaire : {name}',
+  'room.activeCode': 'Code d’invitation actif',
+  'room.expires': 'Expiration : {date}',
+  'room.noExpiry': 'Sans date d’expiration',
+  'room.revokeCode': 'Révoquer le code',
+  'room.revokeHint': 'La génération d’un nouveau code révoque les anciens codes.',
+  'room.codeLoading': 'Chargement de l’invitation…',
+  'room.codeRestricted': 'Demandez un code d’invitation à un hôte.',
   'language.label': 'Langue',
   'language.en': 'English',
   'language.fr': 'Français',
