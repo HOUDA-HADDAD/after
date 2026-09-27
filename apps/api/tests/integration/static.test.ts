@@ -52,6 +52,7 @@ describe('serving the web client', () => {
     expect(response.statusCode).toBe(200);
     expect(response.body).toContain('Aftergame');
     expect(response.headers['content-type']).toContain('text/html');
+    expect(response.headers['cache-control']).toBe('no-cache');
   });
 
   it('serves hashed assets as immutable for a year', async () => {

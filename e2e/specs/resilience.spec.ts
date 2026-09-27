@@ -158,9 +158,9 @@ test.describe('a player who never comes back', () => {
       await sarah.page.getByRole('button', { name: /Passer aux résultats/i }).click();
 
       // lina's assignment was never answered, and the timeline says so rather than hiding it.
-      await expect(sarah.page.getByText(/Pas de réponse/i).first()).toBeVisible({ timeout: 20_000 });
+      await expect(sarah.page.getByText(/Sans réponse/i).first()).toBeVisible({ timeout: 20_000 });
       // Two texts in the pile, because lina never wrote one.
-      await expect(sarah.page.getByText("Écrit anonymement")).toHaveCount(2);
+      await expect(sarah.page.getByText('Écrit anonymement')).toHaveCount(2);
     } finally {
       await closeAll(players);
     }
@@ -181,7 +181,11 @@ test.describe('a game that is gone', () => {
       await expect(
         sarah.page.getByRole('heading', { name: /terminée et a été supprimée/i }),
       ).toBeVisible();
-      await expect(sarah.page.getByText(/Les parties terminées ne restent pas — c’était l’accord quand vous y avez joué\./i)).toBeVisible();
+      await expect(
+        sarah.page.getByText(
+          /Les parties terminées ne restent pas — c’était l’accord quand vous y avez joué\./i,
+        ),
+      ).toBeVisible();
 
       await sarah.page.getByRole('button', { name: /Retour à la salle/i }).click();
       await expect(sarah.page.getByRole('heading', { name: 'Friday Night' })).toBeVisible();

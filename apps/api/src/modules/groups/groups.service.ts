@@ -23,13 +23,17 @@ export function createGroupsService({ groups, env }: GroupsServiceDeps) {
     async create(userId: string, name: string): Promise<GroupSummaryDto> {
       for (let attempt = 0; attempt < 5; attempt += 1) {
         try {
-          const group = await groups.createWithOwner({ name, ownerId: userId, inviteCode: generateInviteCode() });
+          const group = await groups.createWithOwner({
+            name,
+            ownerId: userId,
+            inviteCode: generateInviteCode(),
+          });
           return {
-        id: group.id,
-        name: group.name,
-        memberCount: 1,
-        viewerRole: 'OWNER',
-        createdAt: group.createdAt.toISOString(),
+            id: group.id,
+            name: group.name,
+            memberCount: 1,
+            viewerRole: 'OWNER',
+            createdAt: group.createdAt.toISOString(),
           };
         } catch (error) {
           // The nested write rolls back the group and owner as well as the colliding code.

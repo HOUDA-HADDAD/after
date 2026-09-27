@@ -111,7 +111,7 @@ test.describe('every screen, in both themes', () => {
         /* ---- signed in ------------------------------------------------------------------ */
 
         await sarah.page.goto('/');
-        await expect(sarah.page.getByRole('heading', { name: "Vos salles" })).toBeVisible();
+        await expect(sarah.page.getByRole('heading', { name: 'Vos salles' })).toBeVisible();
         await audit(sarah.page, `groups (${theme})`);
 
         await sarah.page.goto(`/groups/${groupId}`);
@@ -164,7 +164,11 @@ test.describe('every screen, in both themes', () => {
 
         await api(sarah).post(`/api/v1/sessions/${sessionId}/end`);
         await sarah.page.reload();
-        await expect(sarah.page.getByText(/Votre choix est privé\. Personne — pas même l’hôte — ne saura comment vous avez voté\./i)).toBeVisible();
+        await expect(
+          sarah.page.getByText(
+            /Votre choix est privé\. Personne — pas même l’hôte — ne saura comment vous avez voté\./i,
+          ),
+        ).toBeVisible();
         await audit(sarah.page, `reveal (${theme})`);
 
         for (const player of players) {
@@ -174,7 +178,11 @@ test.describe('every screen, in both themes', () => {
         }
 
         await sarah.page.reload();
-        await expect(sarah.page.getByText(/Tout le monde est d’accord — les noms sont sur les textes ci-dessous\./i)).toBeVisible();
+        await expect(
+          sarah.page.getByText(
+            /Tout le monde est d’accord — les noms sont sur les textes ci-dessous\./i,
+          ),
+        ).toBeVisible();
         await audit(sarah.page, `completed (${theme})`);
       } finally {
         await closeAll(players);
@@ -195,7 +203,7 @@ test.describe('the mobile drawer', () => {
       await freezeAnimations(sarah.context);
       await sarah.page.goto(`/groups/${groupId}`);
 
-      const trigger = sarah.page.getByRole('button', { name: "Ouvrir la navigation" });
+      const trigger = sarah.page.getByRole('button', { name: 'Ouvrir la navigation' });
       await expect(trigger).toBeVisible();
       await trigger.click();
 
@@ -347,13 +355,13 @@ test.describe('every control can be hit with a thumb', () => {
       await anonymous.close();
 
       await sarah.page.goto('/');
-      await expect(sarah.page.getByRole('heading', { name: "Vos salles" })).toBeVisible();
+      await expect(sarah.page.getByRole('heading', { name: 'Vos salles' })).toBeVisible();
       await expectTouchTargets(sarah.page, 'rooms');
 
       // The room page carries the densest toolbars in the app — the roster's punish/forgive
       // buttons, the room-code chip, and the theme cards.
       await sarah.page.goto(`/groups/${groupId}`);
-      await expect(sarah.page.getByRole('heading', { name: "Choisissez un thème" })).toBeVisible();
+      await expect(sarah.page.getByRole('heading', { name: 'Choisissez un thème' })).toBeVisible();
       await expectTouchTargets(sarah.page, 'room');
 
       const sessionId = await openGame(sarah, groupId);

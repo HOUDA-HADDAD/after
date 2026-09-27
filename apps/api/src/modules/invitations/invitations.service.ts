@@ -91,11 +91,11 @@ export function createInvitationsService({
             assertCan('invitation:create', await requireActor(scopedGroups, groupId, userId));
             await scopedInvitations.revokeAll(groupId, now());
             return scopedInvitations.create({
-            groupId,
-            code: generateInviteCode(),
-            createdById: userId,
-            expiresAt,
-            maxUses: options.maxUses,
+              groupId,
+              code: generateInviteCode(),
+              createdById: userId,
+              expiresAt,
+              maxUses: options.maxUses,
             });
           });
 
@@ -150,11 +150,15 @@ export function createInvitationsService({
 
         await scopedGroups.lockForUpdate(invitation.groupId);
         const current = await scopedInvitations.findById(invitation.id);
-        if (current === null || current.revokedAt !== null ||
+        if (
+          current === null ||
+          current.revokedAt !== null ||
           (current.expiresAt !== null && current.expiresAt <= now()) ||
-          (current.maxUses !== null && current.useCount >= current.maxUses)) throw unusableCode();
-        if (await scopedGroups.findMembership(invitation.groupId, userId) !== null) return;
-        if (await scopedGroups.countMembers(invitation.groupId) >= env.MAX_GROUP_MEMBERS) {
+          (current.maxUses !== null && current.useCount >= current.maxUses)
+        )
+          throw unusableCode();
+        if ((await scopedGroups.findMembership(invitation.groupId, userId)) !== null) return;
+        if ((await scopedGroups.countMembers(invitation.groupId)) >= env.MAX_GROUP_MEMBERS) {
           throw new ConflictError(ERROR_CODES.GROUP_FULL, 'That group is full');
         }
 

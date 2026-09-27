@@ -118,31 +118,41 @@ the browser on one origin too.
 ## CSRF
 
 `SameSite=Lax` blocks cross-site cookie attachment on all state-changing methods, and every
-mutating request additionally has its `Origin` header verified against an allowlist — requests
-with a missing or foreign Origin are rejected. With a single origin and the `__Host-` prefix,
+mutating request with an `Origin` must match `APP_ORIGIN`. A missing Origin remains accepted for
+non-browser clients unless `Sec-Fetch-Site` identifies a cross-site request. Foreign and `null`
+origins are rejected. WebSocket handshakes use the same rule. With a single origin and the `__Host-` prefix,
 token-based double-submit adds nothing and is omitted deliberately.
 
 ## Rate limiting
 
-`@fastify/rate-limit`, keyed by user id where authenticated and by IP otherwise:
+HTTP flood limits use `@fastify/rate-limit`, keyed by IP. Credential and invitation services add
+in-process account budgets:
 
-| Route group                               | Limit                                               |
-| ----------------------------------------- | --------------------------------------------------- |
-| `POST /auth/login`, `/auth/register`      | 5 / 15 min per IP; login also 10 / hour per account |
-| `POST /invitations/redeem`                | 10 / hour per IP **and** per account                |
-| Content writes (texts, answers, comments) | 30 / min per user                                   |
-| Everything else                           | 300 / min per user                                  |
+| Route group                               | Limit                                                                       |
+| ----------------------------------------- | --------------------------------------------------------------------------- |
+| `POST /auth/login`                        | 5 failed attempts / 15 min per IP; 10 / hour per email; success resets both |
+| `POST /auth/register`                     | 5 requests / 15 min per IP                                                  |
+| `POST /join`                              | 10 / hour per IP **and** per authenticated account                          |
+| Invitation generation                     | 20 / hour per IP                                                            |
+| Content writes (texts, answers, comments) | Global 300 / min per IP; no separate 30 / min budget                        |
+| Everything else                           | 300 / min per IP                                                            |
+| Socket subscriptions                      | 60 / min per account                                                        |
 
 The two dimensions do different jobs, and the second is the one that matters most. `@fastify/rate-limit`
 caps attempts **per IP**, which stops one machine grinding through passwords. The per-account
 limiter (`lib/attempt-limiter.ts`) caps attempts **per email**, which is what stops an attacker
 spreading guesses for one person's account across many addresses — a pattern an IP limit cannot
-see. A successful sign-in clears the account counter, so one forgotten password does not lock
+see. A successful sign-in clears both credential counters, so earlier successful sessions do not lock
 someone out for an hour. It is in-process, matching the single-instance deployment; with several
 instances each would enforce its own share, degraded but never absent.
 
-Invitation-code redemption is the one endpoint where an attacker gets unlimited guesses, so it
-gets the tightest budget and uniform error responses regardless of failure reason.
+Invitation-code redemption receives the tightest budget and uniform errors for invalid, expired,
+revoked or exhausted codes. Budgets reserve attempts before asynchronous verification to bound
+concurrent requests. They are process-local; restarts reset them and multiple instances require
+shared counters. The account login budget also applies when HTTP rate limiting is disabled for tests.
+
+Production trusts one proxy hop. Deploy behind the supplied Caddy proxy, which supplies the client
+address, and do not expose the API port directly. A different proxy chain needs an explicit review.
 
 ## Secrets & configuration
 
@@ -162,9 +172,10 @@ durations and error codes. IP addresses are stored hashed on `auth_sessions` for
 
 ## Database hardening
 
-- The application connects as a least-privilege role with `SELECT/INSERT/UPDATE/DELETE` and no
-  DDL. Migrations run as a separate, more privileged role during release only.
-- Connection string requires TLS in production (`sslmode=require`).
+- Use a least-privilege runtime role and a separate migration role in a managed deployment. The
+  supplied Compose setup uses one database credential and does **not** enforce this separation.
+- Require TLS for a remote production database. The environment parser does **not** enforce
+  `sslmode=require`; the bundled private Compose network is not evidence of TLS on remote hosts.
 - Connection pool bounded and sized to the host's `max_connections`; on serverless PostgreSQL, a
   pooled connection string is used.
 - Cascade chains are designed so that purge is a single statement

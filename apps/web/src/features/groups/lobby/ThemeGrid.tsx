@@ -2,6 +2,7 @@ import { Check } from 'lucide-react';
 import { cn } from '@aftergame/ui';
 import type { SessionThemeDto } from '@aftergame/shared';
 import { useT } from '../../../shared/i18n/LocaleProvider.js';
+import { ThemeIcon } from '../../../shared/components/ThemeIcon.js';
 
 /**
  * The game-mode selector.
@@ -131,7 +132,7 @@ function ThemeCard({
             'motion-safe:group-hover:scale-110',
           )}
         >
-          {theme.icon}
+          <ThemeIcon icon={theme.icon} />
         </span>
 
         {selected && (

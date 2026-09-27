@@ -57,12 +57,19 @@ const routePolicyPlugin: FastifyPluginAsync = async (app) => {
       );
     }
 
-    const params = [...routeOptions.url.matchAll(/:([A-Za-z]+Id)\b/g)].map(match => match[1]!);
+    const params = [...routeOptions.url.matchAll(/:([A-Za-z]+Id)\b/g)].map((match) => match[1]!);
     if (params.length > 0 && routeOptions.schema?.params === undefined) {
-      routeOptions.schema = { ...routeOptions.schema, params: {
-        type: 'object', required: params, additionalProperties: false,
-        properties: Object.fromEntries(params.map(name => [name, { type: 'string', format: 'uuid' }])),
-      } };
+      routeOptions.schema = {
+        ...routeOptions.schema,
+        params: {
+          type: 'object',
+          required: params,
+          additionalProperties: false,
+          properties: Object.fromEntries(
+            params.map((name) => [name, { type: 'string', format: 'uuid' }]),
+          ),
+        },
+      };
     }
 
     app.routePolicies.push({ method: methods.join('|'), url: routeOptions.url, policy });

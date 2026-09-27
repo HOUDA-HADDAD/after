@@ -38,10 +38,16 @@ export function RoomCode({
   );
 
   if (code === undefined) {
-    return <span className="inline-flex flex-wrap items-center gap-3">
-      <span className="text-sm text-[var(--color-ink-muted)]">{t('room.noCode')}</span>
-      {canRegenerate && <Button size="sm" pending={regenerating} onClick={onRegenerate}>{t('room.generateCode')}</Button>}
-    </span>;
+    return (
+      <span className="inline-flex flex-wrap items-center gap-3">
+        <span className="text-sm text-[var(--color-ink-muted)]">{t('room.noCode')}</span>
+        {canRegenerate && (
+          <Button size="sm" pending={regenerating} onClick={onRegenerate}>
+            {t('room.generateCode')}
+          </Button>
+        )}
+      </span>
+    );
   }
 
   const copy = async (): Promise<void> => {

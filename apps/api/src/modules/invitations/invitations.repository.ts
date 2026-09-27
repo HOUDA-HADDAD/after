@@ -44,7 +44,10 @@ export const createInvitationsRepository = (db: DbClient) => ({
   },
 
   async revokeAll(groupId: string, now: Date): Promise<void> {
-    await db.invitation.updateMany({ where: { groupId, revokedAt: null }, data: { revokedAt: now } });
+    await db.invitation.updateMany({
+      where: { groupId, revokedAt: null },
+      data: { revokedAt: now },
+    });
   },
 
   async revoke(id: string, now: Date): Promise<void> {

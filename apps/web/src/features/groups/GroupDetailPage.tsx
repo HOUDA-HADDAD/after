@@ -89,13 +89,20 @@ export default function GroupDetailPage() {
   });
 
   const revokeCode = useMutation({
-    mutationFn: ({ id, invitationId }: { id: string; invitationId: string }) => revokeInvitation(id, invitationId),
-    onSuccess: async (_result, { id }) => { await queryClient.invalidateQueries({ queryKey: queryKeys.invitations(id) }); },
-    onError: (error: unknown) => { toast.error(messageFor(error)); },
+    mutationFn: ({ id, invitationId }: { id: string; invitationId: string }) =>
+      revokeInvitation(id, invitationId),
+    onSuccess: async (_result, { id }) => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.invitations(id) });
+    },
+    onError: (error: unknown) => {
+      toast.error(messageFor(error));
+    },
   });
-  const invitation = invitations.data?.find(entry =>
-    (entry.expiresAt === null || new Date(entry.expiresAt).getTime() > Date.now()) &&
-    (entry.maxUses === null || entry.useCount < entry.maxUses));
+  const invitation = invitations.data?.find(
+    (entry) =>
+      (entry.expiresAt === null || new Date(entry.expiresAt).getTime() > Date.now()) &&
+      (entry.maxUses === null || entry.useCount < entry.maxUses),
+  );
 
   const leave = useMutation({
     mutationFn: () => leaveGroup(groupId),
@@ -143,14 +150,38 @@ export default function GroupDetailPage() {
         }}
       />
 
-      {isHost ? <div className="flex flex-wrap items-center gap-3 text-sm text-[var(--color-ink-muted)]">
-        {invitations.isPending ? <p>{t('room.codeLoading')}</p> : invitations.isError ? <p role="alert">{messageFor(invitations.error)}</p> : invitation ? <>
-          <p>{t('room.activeCode')} · {invitation.expiresAt === null ? t('room.noExpiry') : t('room.expires', { date: new Date(invitation.expiresAt).toLocaleString('fr-FR') })}</p>
-          <Button size="sm" variant="danger" pending={revokeCode.isPending} disabled={newCode.isPending}
-            onClick={() => revokeCode.mutate({ id: groupId, invitationId: invitation.id })}>{t('room.revokeCode')}</Button>
-        </> : null}
-        <p className="w-full">{t('room.revokeHint')}</p>
-      </div> : <p className="text-sm text-[var(--color-ink-muted)]">{t('room.codeRestricted')}</p>}
+      {isHost ? (
+        <div className="flex flex-wrap items-center gap-3 text-sm text-[var(--color-ink-muted)]">
+          {invitations.isPending ? (
+            <p>{t('room.codeLoading')}</p>
+          ) : invitations.isError ? (
+            <p role="alert">{messageFor(invitations.error)}</p>
+          ) : invitation ? (
+            <>
+              <p>
+                {t('room.activeCode')} ·{' '}
+                {invitation.expiresAt === null
+                  ? t('room.noExpiry')
+                  : t('room.expires', {
+                      date: new Date(invitation.expiresAt).toLocaleString('fr-FR'),
+                    })}
+              </p>
+              <Button
+                size="sm"
+                variant="danger"
+                pending={revokeCode.isPending}
+                disabled={newCode.isPending}
+                onClick={() => revokeCode.mutate({ id: groupId, invitationId: invitation.id })}
+              >
+                {t('room.revokeCode')}
+              </Button>
+            </>
+          ) : null}
+          <p className="w-full">{t('room.revokeHint')}</p>
+        </div>
+      ) : (
+        <p className="text-sm text-[var(--color-ink-muted)]">{t('room.codeRestricted')}</p>
+      )}
 
       <LobbyPanel
         key={`lobby-${groupId}`}

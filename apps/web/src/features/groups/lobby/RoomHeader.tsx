@@ -25,7 +25,7 @@ export function RoomHeader({
 }) {
   const t = useT();
   const plural = usePlural();
-  const owner = group.members.find(member => member.role === 'OWNER');
+  const owner = group.members.find((member) => member.role === 'OWNER');
 
   return (
     <header className="flex flex-wrap items-center gap-x-3 gap-y-2">
@@ -38,6 +38,7 @@ export function RoomHeader({
       {/* Pushes the code to its own line on a narrow screen rather than squeezing the name. */}
       <span className="w-full sm:ml-auto sm:w-auto">
         <RoomCode
+          key={code ?? 'no-code'}
           code={code}
           canRegenerate={canRegenerate}
           regenerating={regenerating}

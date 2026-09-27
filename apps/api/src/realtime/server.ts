@@ -21,7 +21,11 @@ function cookieFromHandshake(header: string | undefined, name: string): string {
   for (const part of header.split(';')) {
     const [key, ...rest] = part.trim().split('=');
     if (key === name) {
-      try { return decodeURIComponent(rest.join('=')); } catch { return ''; }
+      try {
+        return decodeURIComponent(rest.join('='));
+      } catch {
+        return '';
+      }
     }
   }
 
@@ -53,7 +57,11 @@ const realtimePlugin: FastifyPluginAsync<{ env: Env }> = async (app, { env }) =>
     serveClient: false,
     allowRequest: (request, callback) => {
       const origin = request.headers.origin;
-      callback(null, origin === env.APP_ORIGIN || (origin === undefined && request.headers['sec-fetch-site'] !== 'cross-site'));
+      callback(
+        null,
+        origin === env.APP_ORIGIN ||
+          (origin === undefined && request.headers['sec-fetch-site'] !== 'cross-site'),
+      );
     },
   });
 
@@ -93,7 +101,9 @@ const realtimePlugin: FastifyPluginAsync<{ env: Env }> = async (app, { env }) =>
   const currentUser = (socket: Socket): string => stateOf(socket).userId ?? '';
 
   const hasLiveSession = async (socket: Socket): Promise<boolean> => {
-    const resolved = await app.auth.resolve(cookieFromHandshake(socket.handshake.headers.cookie, cookieName));
+    const resolved = await app.auth.resolve(
+      cookieFromHandshake(socket.handshake.headers.cookie, cookieName),
+    );
     if (resolved?.user.id === currentUser(socket)) return true;
     socket.disconnect(true);
     return false;
@@ -108,7 +118,8 @@ const realtimePlugin: FastifyPluginAsync<{ env: Env }> = async (app, { env }) =>
       void (async () => {
         try {
           if (!(await hasLiveSession(socket))) return;
-          if (room.startsWith('group:')) await app.groups.detail(room.slice(6), currentUser(socket));
+          if (room.startsWith('group:'))
+            await app.groups.detail(room.slice(6), currentUser(socket));
           else await app.sessions.requireSession(room.slice(8), currentUser(socket));
           if (socket.connected && socket.rooms.has(room)) socket.emit(event, payload);
         } catch {
@@ -128,7 +139,12 @@ const realtimePlugin: FastifyPluginAsync<{ env: Env }> = async (app, { env }) =>
      * requester could not already read.
      */
     socket.on('subscribe:group', (groupId: unknown) => {
-      if (typeof groupId !== 'string' || groupId.length !== 36 || !subscriptionLimiter.consume(currentUser(socket))) return;
+      if (
+        typeof groupId !== 'string' ||
+        groupId.length !== 36 ||
+        !subscriptionLimiter.consume(currentUser(socket))
+      )
+        return;
 
       hasLiveSession(socket)
         .then(async (valid) => {
@@ -142,7 +158,12 @@ const realtimePlugin: FastifyPluginAsync<{ env: Env }> = async (app, { env }) =>
     });
 
     socket.on('subscribe:session', (sessionId: unknown) => {
-      if (typeof sessionId !== 'string' || sessionId.length !== 36 || !subscriptionLimiter.consume(currentUser(socket))) return;
+      if (
+        typeof sessionId !== 'string' ||
+        sessionId.length !== 36 ||
+        !subscriptionLimiter.consume(currentUser(socket))
+      )
+        return;
 
       hasLiveSession(socket)
         .then(async (valid) => {
@@ -166,7 +187,9 @@ const realtimePlugin: FastifyPluginAsync<{ env: Env }> = async (app, { env }) =>
   /* ---- bus → rooms ---------------------------------------------------------------------- */
 
   app.events.on('session.phase_changed', (payload) => {
-    emitAuthorized(sessionRoom(payload.sessionId), 'session:changed', { sessionId: payload.sessionId });
+    emitAuthorized(sessionRoom(payload.sessionId), 'session:changed', {
+      sessionId: payload.sessionId,
+    });
     emitAuthorized(groupRoom(payload.groupId), 'group:changed', { groupId: payload.groupId });
   });
 
@@ -180,13 +203,17 @@ const realtimePlugin: FastifyPluginAsync<{ env: Env }> = async (app, { env }) =>
   });
 
   app.events.on('session.roster_changed', (payload) => {
-    emitAuthorized(sessionRoom(payload.sessionId), 'session:changed', { sessionId: payload.sessionId });
+    emitAuthorized(sessionRoom(payload.sessionId), 'session:changed', {
+      sessionId: payload.sessionId,
+    });
     emitAuthorized(groupRoom(payload.groupId), 'group:changed', { groupId: payload.groupId });
   });
 
   app.events.on('timeline.comment_added', (payload) => {
     // The comment itself is not sent; clients refetch the timeline through the projection.
-    emitAuthorized(sessionRoom(payload.sessionId), 'session:changed', { sessionId: payload.sessionId });
+    emitAuthorized(sessionRoom(payload.sessionId), 'session:changed', {
+      sessionId: payload.sessionId,
+    });
   });
 
   app.events.on('session.reveal_progress', (payload) => {

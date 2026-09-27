@@ -33,7 +33,15 @@ function Protected({ children }: { children: ReactNode }) {
 function ThemedToaster() {
   const { theme } = useTheme();
 
-  return <Toaster theme={theme} position="bottom-right" closeButton richColors toastOptions={{ closeButtonAriaLabel: 'Fermer la notification' }} />;
+  return (
+    <Toaster
+      theme={theme}
+      position="bottom-right"
+      closeButton
+      richColors
+      toastOptions={{ closeButtonAriaLabel: 'Fermer la notification' }}
+    />
+  );
 }
 
 export function AppRouter() {

@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from './zod.js';
 import { COMMENT_MAX_LENGTH, REACTIONS, TEXT_MAX_LENGTH } from '../constants.js';
 
 /**
@@ -11,14 +11,14 @@ import { COMMENT_MAX_LENGTH, REACTIONS, TEXT_MAX_LENGTH } from '../constants.js'
 export const contentBodySchema = z
   .string()
   .trim()
-  .min(1, 'Write something first — it cannot be empty')
-  .max(TEXT_MAX_LENGTH, `Keep it under ${String(TEXT_MAX_LENGTH)} characters`);
+  .min(1, 'Écrivez quelque chose : le texte ne peut pas être vide')
+  .max(TEXT_MAX_LENGTH, `Ne dépassez pas ${String(TEXT_MAX_LENGTH)} caractères`);
 
 /** A draft may be empty — that is the difference between saving and submitting. */
 export const draftBodySchema = z.string().max(TEXT_MAX_LENGTH);
 
 export const createSessionSchema = z.object({
-  themeId: z.string().uuid('Pick a theme'),
+  themeId: z.string().uuid('Choisissez un thème'),
 });
 
 export const saveDraftSchema = z.object({ body: draftBodySchema });
@@ -28,8 +28,8 @@ export const createCommentSchema = z.object({
   body: z
     .string()
     .trim()
-    .min(1, 'Write something first')
-    .max(COMMENT_MAX_LENGTH, `Keep it under ${String(COMMENT_MAX_LENGTH)} characters`),
+    .min(1, 'Écrivez quelque chose')
+    .max(COMMENT_MAX_LENGTH, `Ne dépassez pas ${String(COMMENT_MAX_LENGTH)} caractères`),
   /** Chosen per comment, at post time. Anonymous is the default and is never reversible (D17). */
   isAnonymous: z.boolean().default(true),
 });

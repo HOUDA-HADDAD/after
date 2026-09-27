@@ -107,8 +107,8 @@ export function SocketProvider({ children }: { children: ReactNode }) {
     socketRef.current?.emit('subscribe:group', groupId);
 
     return () => {
-        groupRooms.current.delete(groupId);
-        socketRef.current?.emit('unsubscribe:group', groupId);
+      groupRooms.current.delete(groupId);
+      socketRef.current?.emit('unsubscribe:group', groupId);
     };
   }, []);
 

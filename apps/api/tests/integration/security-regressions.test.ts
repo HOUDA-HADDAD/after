@@ -20,15 +20,42 @@ describe('security audit regressions', () => {
 
   it('rejects malformed resource IDs without a database error and disables API caching', async () => {
     const user = await registerUser(app);
-    const response = await app.inject(asUser(user.token, { method: 'GET', url: '/api/v1/groups/not-a-uuid' }));
+    const response = await app.inject(
+      asUser(user.token, { method: 'GET', url: '/api/v1/groups/not-a-uuid' }),
+    );
     expect(response.statusCode).toBe(400);
     expect(response.json()).toMatchObject({ code: 'VALIDATION_FAILED' });
     expect(response.headers['cache-control']).toBe('no-store');
   });
 
   it('rejects cross-site browser mutations even when Origin is missing', async () => {
-    const response = await app.inject({ method: 'POST', url: '/api/v1/auth/logout', headers: { 'sec-fetch-site': 'cross-site' } });
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/logout',
+      headers: { 'sec-fetch-site': 'cross-site' },
+    });
     expect(response.statusCode).toBe(403);
+  });
+
+  it('rechecks ownership after concurrent transfers acquire the group lock', async () => {
+    const owner = await registerUser(app);
+    const members = await Promise.all([registerUser(app), registerUser(app)]);
+    const group = await app.groups.create(owner.userId, 'Salon');
+    const invite = (await app.invitations.list(group.id, owner.userId))[0]!;
+    for (const member of members) await app.invitations.redeem(invite.code, member.userId);
+    const results = await Promise.allSettled(
+      members.map((member) =>
+        app.memberships.transferOwnership(group.id, owner.userId, member.userId),
+      ),
+    );
+    expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(1);
+    const owners = await testPrisma().groupMembership.findMany({
+      where: { groupId: group.id, role: 'OWNER' },
+    });
+    expect(owners).toHaveLength(1);
+    expect((await testPrisma().group.findUniqueOrThrow({ where: { id: group.id } })).ownerId).toBe(
+      owners[0]!.userId,
+    );
   });
 
   const connect = async (token: string, origin = 'http://localhost:5173'): Promise<Socket> => {
@@ -36,7 +63,8 @@ describe('security audit regressions', () => {
     const address = app.server.address();
     if (address === null || typeof address === 'string') throw new Error('No listening address');
     const socket = io(`http://127.0.0.1:${String(address.port)}`, {
-      transports: ['websocket'], reconnection: false,
+      transports: ['websocket'],
+      reconnection: false,
       extraHeaders: { cookie: `${TEST_COOKIE_NAME}=${token}`, origin },
     });
     sockets.push(socket);
@@ -52,23 +80,36 @@ describe('security audit regressions', () => {
     await expect(connect('%ZZ')).rejects.toThrow();
   });
 
-  it.each(['logout', 'expiry', 'membership'] as const)('stops existing socket delivery after %s revocation', async (reason) => {
-    const owner = await registerUser(app);
-    const member = await registerUser(app);
-    const group = await app.groups.create(owner.userId, 'Salon');
-    await app.invitations.redeem((await app.invitations.list(group.id, owner.userId))[0]!.code, member.userId);
-    const socket = await connect(member.token);
-    socket.emit('subscribe:group', group.id);
-    await expect.poll(() => app.io.sockets.adapter.rooms.get(`group:${group.id}`)?.size).toBe(1);
-    const received: unknown[] = [];
-    socket.on('group:changed', payload => received.push(payload));
-    app.events.emit('group.session_changed', { groupId: group.id });
-    await expect.poll(() => received.length).toBe(1);
-    if (reason === 'logout') await app.auth.logout(member.token);
-    if (reason === 'expiry') await testPrisma().authSession.updateMany({ where: { userId: member.userId }, data: { expiresAt: new Date(0) } });
-    if (reason === 'membership') await app.memberships.remove(group.id, owner.userId, member.userId);
-    app.events.emit('group.session_changed', { groupId: group.id });
-    await expect.poll(() => app.io.sockets.adapter.rooms.get(`group:${group.id}`)?.size ?? 0).toBe(0);
-    expect(received).toHaveLength(1);
-  });
+  it.each(['logout', 'expiry', 'membership'] as const)(
+    'stops existing socket delivery after %s revocation',
+    async (reason) => {
+      const owner = await registerUser(app);
+      const member = await registerUser(app);
+      const group = await app.groups.create(owner.userId, 'Salon');
+      await app.invitations.redeem(
+        (await app.invitations.list(group.id, owner.userId))[0]!.code,
+        member.userId,
+      );
+      const socket = await connect(member.token);
+      socket.emit('subscribe:group', group.id);
+      await expect.poll(() => app.io.sockets.adapter.rooms.get(`group:${group.id}`)?.size).toBe(1);
+      const received: unknown[] = [];
+      socket.on('group:changed', (payload) => received.push(payload));
+      app.events.emit('group.session_changed', { groupId: group.id });
+      await expect.poll(() => received.length).toBe(1);
+      if (reason === 'logout') await app.auth.logout(member.token);
+      if (reason === 'expiry')
+        await testPrisma().authSession.updateMany({
+          where: { userId: member.userId },
+          data: { expiresAt: new Date(0) },
+        });
+      if (reason === 'membership')
+        await app.memberships.remove(group.id, owner.userId, member.userId);
+      app.events.emit('group.session_changed', { groupId: group.id });
+      await expect
+        .poll(() => app.io.sockets.adapter.rooms.get(`group:${group.id}`)?.size ?? 0)
+        .toBe(0);
+      expect(received).toHaveLength(1);
+    },
+  );
 });

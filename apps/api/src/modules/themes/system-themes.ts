@@ -35,7 +35,8 @@ export const SYSTEM_THEMES: readonly SystemThemeInput[] = [
   {
     slug: 'anecdotes',
     name: 'Anecdotes',
-    description: 'Demandez une histoire. Lisez les réponses, discutez-en, puis devinez qui a posé la question.',
+    description:
+      'Demandez une histoire. Lisez les réponses, discutez-en, puis devinez qui a posé la question.',
     writePrompt: 'Écrivez une consigne qui invite à raconter une histoire',
     writePlaceholder: 'Racontez votre souvenir d’enfance le plus drôle.',
     answerPrompt: 'Racontez votre histoire',

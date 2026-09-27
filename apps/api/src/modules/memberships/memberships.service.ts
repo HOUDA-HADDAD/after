@@ -18,7 +18,11 @@ export interface MembershipsServiceDeps {
 
 export function createMembershipsService({ groups, transaction }: MembershipsServiceDeps) {
   /** Look up the person being acted on. 404 if they are not in this group. */
-  const requireTarget = async (groupId: string, targetUserId: string, repository: GroupsRepository = groups): Promise<Target> => {
+  const requireTarget = async (
+    groupId: string,
+    targetUserId: string,
+    repository: GroupsRepository = groups,
+  ): Promise<Target> => {
     const membership = await repository.findMembership(groupId, targetUserId);
 
     if (membership === null) {
@@ -49,62 +53,62 @@ export function createMembershipsService({ groups, transaction }: MembershipsSer
       role: 'COHOST' | 'MEMBER',
     ): Promise<GroupMemberDto> {
       return transaction(async (tx) => {
-      const scoped = createGroupsRepository(tx);
-      await scoped.lockForUpdate(groupId);
-      const actor = await requireActor(scoped, groupId, actorId);
-      const target = await requireTarget(groupId, targetUserId, scoped);
+        const scoped = createGroupsRepository(tx);
+        await scoped.lockForUpdate(groupId);
+        const actor = await requireActor(scoped, groupId, actorId);
+        const target = await requireTarget(groupId, targetUserId, scoped);
 
-      assertCan(role === 'COHOST' ? 'member:promote' : 'member:demote', actor, target);
+        assertCan(role === 'COHOST' ? 'member:promote' : 'member:demote', actor, target);
 
-      if (target.userId === actor.userId) {
-        throw new ForbiddenError(
-          ERROR_CODES.CANNOT_ACT_ON_SELF,
-          'You cannot change your own role.',
-        );
-      }
+        if (target.userId === actor.userId) {
+          throw new ForbiddenError(
+            ERROR_CODES.CANNOT_ACT_ON_SELF,
+            'You cannot change your own role.',
+          );
+        }
 
-      if (target.role === 'OWNER') {
-        throw new ConflictError(
-          ERROR_CODES.CONFLICT,
-          'The owner’s role cannot be changed',
-          'Transfer ownership instead.',
-        );
-      }
+        if (target.role === 'OWNER') {
+          throw new ConflictError(
+            ERROR_CODES.CONFLICT,
+            'The owner’s role cannot be changed',
+            'Transfer ownership instead.',
+          );
+        }
 
-      await scoped.setRole(groupId, targetUserId, role);
+        await scoped.setRole(groupId, targetUserId, role);
 
-      const members = await scoped.listMembers(groupId);
-      const updated = members.find((member) => member.userId === targetUserId);
+        const members = await scoped.listMembers(groupId);
+        const updated = members.find((member) => member.userId === targetUserId);
 
-      if (updated === undefined) throw new NotFoundError();
+        if (updated === undefined) throw new NotFoundError();
 
-      return toMemberDto(updated);
+        return toMemberDto(updated);
       });
     },
 
     /** Remove someone else. Co-hosts may remove ordinary members only (D16). */
     async remove(groupId: string, actorId: string, targetUserId: string): Promise<void> {
       await transaction(async (tx) => {
-      const scoped = createGroupsRepository(tx);
-      await scoped.lockForUpdate(groupId);
-      const actor = await requireActor(scoped, groupId, actorId);
-      const target = await requireTarget(groupId, targetUserId, scoped);
+        const scoped = createGroupsRepository(tx);
+        await scoped.lockForUpdate(groupId);
+        const actor = await requireActor(scoped, groupId, actorId);
+        const target = await requireTarget(groupId, targetUserId, scoped);
 
-      assertCan('member:remove', actor, target);
+        assertCan('member:remove', actor, target);
 
-      await scoped.removeMember(groupId, targetUserId);
+        await scoped.removeMember(groupId, targetUserId);
       });
     },
 
     /** Leave a group of your own accord. The owner must transfer ownership first. */
     async leave(groupId: string, userId: string): Promise<void> {
       await transaction(async (tx) => {
-      const scoped = createGroupsRepository(tx);
-      await scoped.lockForUpdate(groupId);
-      const actor = await requireActor(scoped, groupId, userId);
-      assertCan('member:leave', actor);
+        const scoped = createGroupsRepository(tx);
+        await scoped.lockForUpdate(groupId);
+        const actor = await requireActor(scoped, groupId, userId);
+        assertCan('member:leave', actor);
 
-      await scoped.removeMember(groupId, userId);
+        await scoped.removeMember(groupId, userId);
       });
     },
 
@@ -123,16 +127,16 @@ export function createMembershipsService({ groups, transaction }: MembershipsSer
       targetUserId: string,
     ): Promise<GroupMemberDto[]> {
       await transaction(async (tx) => {
-      const scoped = createGroupsRepository(tx);
-      await scoped.lockForUpdate(groupId);
-      const actor = await requireActor(scoped, groupId, actorId);
-      const target = await requireTarget(groupId, targetUserId, scoped);
+        const scoped = createGroupsRepository(tx);
+        await scoped.lockForUpdate(groupId);
+        const actor = await requireActor(scoped, groupId, actorId);
+        const target = await requireTarget(groupId, targetUserId, scoped);
 
-      assertCan('ownership:transfer', actor);
+        assertCan('ownership:transfer', actor);
 
-      if (target.userId === actor.userId) {
-        throw new ForbiddenError(ERROR_CODES.CANNOT_ACT_ON_SELF, 'You already own this group.');
-      }
+        if (target.userId === actor.userId) {
+          throw new ForbiddenError(ERROR_CODES.CANNOT_ACT_ON_SELF, 'You already own this group.');
+        }
 
         await scoped.setRole(groupId, actorId, 'COHOST');
         await scoped.setRole(groupId, targetUserId, 'OWNER');

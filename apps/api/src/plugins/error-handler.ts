@@ -64,7 +64,10 @@ const errorHandlerPlugin: FastifyPluginAsync<{ env: Env }> = async (app, { env }
 
     // Malformed JSON and similar client mistakes arrive as 4xx without `validation`.
     if (error.statusCode !== undefined && error.statusCode >= 400 && error.statusCode < 500) {
-      return send(reply, new ValidationError({ request: ['La requête est invalide.'] }).toProblem(request.id));
+      return send(
+        reply,
+        new ValidationError({ request: ['La requête est invalide.'] }).toProblem(request.id),
+      );
     }
 
     request.log.error({ errorName: error.name, errorCode: error.code }, 'unhandled error');

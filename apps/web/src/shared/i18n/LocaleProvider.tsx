@@ -66,7 +66,13 @@ function interpolate(template: string, values?: TranslationValues): string {
  * (backends, lazy namespaces, ICU) this app has no use for. If plural rules beyond one/other are
  * ever needed, that is the moment to reconsider.
  */
-export function LocaleProvider({ children, fixedLocale }: { children: ReactNode; fixedLocale?: Locale }) {
+export function LocaleProvider({
+  children,
+  fixedLocale,
+}: {
+  children: ReactNode;
+  fixedLocale?: Locale;
+}) {
   const [selectedLocale, setLocaleState] = useState<Locale>(initialLocale);
   const locale = fixedLocale ?? selectedLocale;
 

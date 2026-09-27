@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from './zod.js';
 import {
   GROUP_NAME_MAX_LENGTH,
   GROUP_NAME_MIN_LENGTH,
@@ -11,8 +11,8 @@ import {
 export const groupNameSchema = z
   .string()
   .trim()
-  .min(GROUP_NAME_MIN_LENGTH, 'Give the group a name')
-  .max(GROUP_NAME_MAX_LENGTH, `Keep it under ${String(GROUP_NAME_MAX_LENGTH)} characters`);
+  .min(GROUP_NAME_MIN_LENGTH, 'Donnez un nom au salon')
+  .max(GROUP_NAME_MAX_LENGTH, `Ne dépassez pas ${String(GROUP_NAME_MAX_LENGTH)} caractères`);
 
 export const createGroupSchema = z.object({ name: groupNameSchema });
 export const renameGroupSchema = z.object({ name: groupNameSchema });
@@ -37,7 +37,7 @@ const inviteCodePattern = new RegExp(`^[${INVITE_CODE_ALPHABET}]{${String(INVITE
 export const inviteCodeSchema = z
   .string()
   .transform(normaliseInviteCode)
-  .refine((code) => inviteCodePattern.test(code), 'That code does not look right');
+  .refine((code) => inviteCodePattern.test(code), 'Ce code semble incorrect');
 
 export const joinByCodeSchema = z.object({ code: inviteCodeSchema });
 
@@ -65,22 +65,25 @@ export const groupThemeSchema = z.object({
   name: z
     .string()
     .trim()
-    .min(1, 'Give the theme a name')
-    .max(THEME_NAME_MAX_LENGTH, `Keep the name under ${String(THEME_NAME_MAX_LENGTH)} characters`),
-  description: z.string().trim().min(1, 'Say what this theme is for').max(THEME_TEXT_MAX_LENGTH),
+    .min(1, 'Donnez un nom au thème')
+    .max(
+      THEME_NAME_MAX_LENGTH,
+      `Le nom ne doit pas dépasser ${String(THEME_NAME_MAX_LENGTH)} caractères`,
+    ),
+  description: z.string().trim().min(1, 'Décrivez ce thème').max(THEME_TEXT_MAX_LENGTH),
   writePrompt: z
     .string()
     .trim()
-    .min(1, 'Players need to know what to write')
+    .min(1, 'Indiquez aux joueurs ce qu’ils doivent écrire')
     .max(THEME_TEXT_MAX_LENGTH),
   writePlaceholder: z.string().trim().max(THEME_TEXT_MAX_LENGTH).default(''),
   answerPrompt: z
     .string()
     .trim()
-    .min(1, 'Players need to know what to answer')
+    .min(1, 'Indiquez aux joueurs ce qu’ils doivent répondre')
     .max(THEME_TEXT_MAX_LENGTH),
   /** One emoji, shown in the picker and pinned in the banner all game. */
-  icon: z.string().trim().min(1, 'Pick an icon').max(8),
+  icon: z.string().trim().min(1, 'Choisissez une icône').max(8),
   supportsComments: z.boolean().default(true),
   supportsAuthorGuess: z.boolean().default(true),
 });

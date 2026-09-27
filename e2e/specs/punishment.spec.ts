@@ -79,10 +79,16 @@ test.describe('a blocked player', () => {
       // The host forgives from the group screen, through the UI. Scoped to the roster inside the
       // main panel: the sidebar lists the same people, and so does the punishment history below.
       await sarah.page.goto(`/groups/${groupId}`);
-      const roster = sarah.page.locator('main').getByRole('region', { name: "Joueurs" });
+      const roster = sarah.page.locator('main').getByRole('region', { name: 'Joueurs' });
 
       await expect(roster.getByText(ahmed.name)).toBeVisible();
-      await roster.getByRole('button', { name: "Pardonner" }).click();
+      const forgiven = sarah.page.waitForResponse(
+        (response) =>
+          response.url().endsWith(`/members/${ahmed.name}/forgive`) ||
+          (response.request().method() === 'POST' && response.url().endsWith('/forgive')),
+      );
+      await roster.getByRole('button', { name: 'Pardonner' }).click();
+      expect((await forgiven).status()).toBe(200);
 
       await ahmed.page.reload();
       await expect(ahmed.page.getByRole('button', { name: /Rejoindre la partie/i })).toBeVisible();

@@ -57,17 +57,23 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const register = useCallback(async (input: RegisterInput) => {
-    const session = await apiPost<SessionDto>('/auth/register', input);
-    queryClient.clear();
-    setState({ status: 'authenticated', user: session.user });
-  }, [queryClient]);
+  const register = useCallback(
+    async (input: RegisterInput) => {
+      const session = await apiPost<SessionDto>('/auth/register', input);
+      queryClient.clear();
+      setState({ status: 'authenticated', user: session.user });
+    },
+    [queryClient],
+  );
 
-  const login = useCallback(async (input: LoginInput) => {
-    const session = await apiPost<SessionDto>('/auth/login', input);
-    queryClient.clear();
-    setState({ status: 'authenticated', user: session.user });
-  }, [queryClient]);
+  const login = useCallback(
+    async (input: LoginInput) => {
+      const session = await apiPost<SessionDto>('/auth/login', input);
+      queryClient.clear();
+      setState({ status: 'authenticated', user: session.user });
+    },
+    [queryClient],
+  );
 
   const logout = useCallback(async () => {
     await apiPost<void>('/auth/logout');

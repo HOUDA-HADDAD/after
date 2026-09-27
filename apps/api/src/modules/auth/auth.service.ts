@@ -146,7 +146,11 @@ export function createAuthService({
       const email = input.email.trim();
       const limiterKey = email.toLowerCase();
 
-      if (context.ip !== undefined && ipLoginLimiter !== undefined && !ipLoginLimiter.consume(context.ip)) {
+      if (
+        context.ip !== undefined &&
+        ipLoginLimiter !== undefined &&
+        !ipLoginLimiter.consume(context.ip)
+      ) {
         throw new RateLimitedError('Too many failed sign-in attempts. Try again later.');
       }
 

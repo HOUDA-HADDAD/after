@@ -1,6 +1,7 @@
 import type { SessionPhaseDto, SessionThemeDto } from '@aftergame/shared';
 import { Badge } from '@aftergame/ui';
 import { useT } from '../../../shared/i18n/LocaleProvider.js';
+import { ThemeIcon } from '../../../shared/components/ThemeIcon.js';
 
 /** The phase, as a translation key. `usePhaseLabel` turns it into words. */
 export function usePhaseLabel(): (phase: SessionPhaseDto) => string {
@@ -30,7 +31,7 @@ export function ThemeBanner({
     <div className="sticky top-0 z-[var(--z-sticky)] border-b border-[var(--color-border)] bg-[var(--color-surface)]/95 backdrop-blur">
       <div className="mx-auto flex max-w-3xl flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 sm:px-6">
         <span aria-hidden="true" className="text-lg">
-          {theme.icon}
+          <ThemeIcon icon={theme.icon} />
         </span>
 
         <h1 className="text-base font-semibold tracking-tight">{theme.name}</h1>

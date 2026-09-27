@@ -38,11 +38,11 @@ test.describe('a theme a group writes for itself', () => {
         .click();
       await sarah.page.getByRole('button', { name: /Écrire un thème/i }).click();
 
-      await sarah.page.getByLabel("Nom").fill('Unpopular opinions');
-      await sarah.page.getByLabel("Icône").fill('🌶️');
-      await sarah.page.getByLabel("Description").fill('Say the thing.');
-      await sarah.page.getByLabel("Consigne d’écriture").fill('Write an unpopular opinion');
-      await sarah.page.getByLabel("Consigne de réponse").fill('Defend it or demolish it');
+      await sarah.page.getByLabel('Nom').fill('Unpopular opinions');
+      await sarah.page.getByLabel('Icône').fill('🌶️');
+      await sarah.page.getByLabel('Description').fill('Say the thing.');
+      await sarah.page.getByLabel('Consigne d’écriture').fill('Write an unpopular opinion');
+      await sarah.page.getByLabel('Consigne de réponse').fill('Defend it or demolish it');
       await sarah.page.getByRole('button', { name: /Ajouter au sélecteur/i }).click();
 
       // Listed where it was written…

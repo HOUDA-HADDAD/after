@@ -56,7 +56,9 @@ test.describe('a game played by three people at once', () => {
       await expect(sarah.page.getByText(lina.name).first()).toBeVisible();
 
       // The punishment load is public, because it is a rule of the game (D6).
-      await expect(lina.page.getByText(new RegExp(`${ahmed.name} répond à 3 textes`))).toBeVisible();
+      await expect(
+        lina.page.getByText(new RegExp(`${ahmed.name} répond à 3 textes`)),
+      ).toBeVisible();
 
       /* ---- writing ----------------------------------------------------------------------- */
 
@@ -89,7 +91,12 @@ test.describe('a game played by three people at once', () => {
         await lina.page.evaluate(() => (window as unknown as { marker?: number }).marker),
       ).toBe(1);
 
-      await compose(ahmed.page, prompts.write, 'I got lost in a supermarket.', /Envoyer mon texte/i);
+      await compose(
+        ahmed.page,
+        prompts.write,
+        'I got lost in a supermarket.',
+        /Envoyer mon texte/i,
+      );
       await expect(lina.page.getByText('2 / 3 textes reçus')).toBeVisible();
 
       // Nobody is ever told who is still writing — the count is the only signal anonymity allows.
@@ -140,28 +147,30 @@ test.describe('a game played by three people at once', () => {
       for (const player of everyone) {
         await expect(player.page.getByText(/toaster/)).toBeVisible({ timeout: 20_000 });
         // Three texts, three anonymous attributions, and not a name among them.
-        await expect(player.page.getByText("Écrit anonymement")).toHaveCount(3);
+        await expect(player.page.getByText('Écrit anonymement')).toHaveCount(3);
         await expect(player.page.getByText(/^Écrit par /)).toHaveCount(0);
       }
 
       // A comment posted in one browser appears in the others, live.
       await ahmed.page
-        .getByRole('textbox', { name: "Ajouter un commentaire" })
+        .getByRole('textbox', { name: 'Ajouter un commentaire' })
         .first()
         .fill('That is bold.');
-      await ahmed.page.getByRole('button', { name: "Publier" }).first().click();
+      await ahmed.page.getByRole('button', { name: 'Publier' }).first().click();
 
       await expect(sarah.page.getByText('That is bold.')).toBeVisible();
       await expect(lina.page.getByText(/Anonyme — That is bold\./)).toBeVisible();
 
       // A guess, with no hint of whether it landed (D9).
       await sarah.page
-        .getByRole('group', { name: "Devinez l’auteur" })
+        .getByRole('group', { name: 'Devinez l’auteur' })
         .first()
         .getByRole('button')
         .first()
         .click();
-      await expect(sarah.page.getByText(/Enregistré\. Vous pouvez encore le changer\./i).first()).toBeVisible();
+      await expect(
+        sarah.page.getByText(/Enregistré\. Vous pouvez encore le changer\./i).first(),
+      ).toBeVisible();
       await expect(sarah.page.getByText(/Bien vu|Raté/i)).toHaveCount(0);
 
       /* ---- the reveal -------------------------------------------------------------------- */
@@ -169,9 +178,17 @@ test.describe('a game played by three people at once', () => {
       await sarah.page.getByRole('button', { name: /Passer au vote de révélation/i }).click();
 
       for (const player of everyone) {
-        await expect(player.page.getByText(/Votre choix est privé\. Personne — pas même l’hôte — ne saura comment vous avez voté\./i)).toBeVisible();
+        await expect(
+          player.page.getByText(
+            /Votre choix est privé\. Personne — pas même l’hôte — ne saura comment vous avez voté\./i,
+          ),
+        ).toBeVisible();
         // Three players is small enough that a refusal is inferable, and the screen says so.
-        await expect(player.page.getByText(/À savoir avant de choisir : dans une partie aussi petite, un refus de révélation permet de deviner qui a refusé\. Cela découle de la règle elle-même, alors autant le dire\./i)).toBeVisible();
+        await expect(
+          player.page.getByText(
+            /À savoir avant de choisir : dans une partie aussi petite, un refus de révélation permet de deviner qui a refusé\. Cela découle de la règle elle-même, alors autant le dire\./i,
+          ),
+        ).toBeVisible();
       }
 
       await sarah.page.getByRole('button', { name: /Révéler les auteurs/i }).click();
@@ -206,28 +223,46 @@ test.describe('a game played by three people at once', () => {
 
       for (const player of everyone) {
         await player.page.goto(gameUrl(groupId, sessionId));
-        await compose(player.page, prompts.write, `${player.name} wrote this.`, /Envoyer mon texte/i);
+        await compose(
+          player.page,
+          prompts.write,
+          `${player.name} wrote this.`,
+          /Envoyer mon texte/i,
+        );
       }
 
       for (const player of everyone) {
         await expect(player.page.getByRole('textbox', { name: prompts.answer })).toBeVisible({
           timeout: 20_000,
         });
-        await compose(player.page, prompts.answer, `${player.name} answered.`, /Envoyer la réponse/i);
+        await compose(
+          player.page,
+          prompts.answer,
+          `${player.name} answered.`,
+          /Envoyer la réponse/i,
+        );
       }
 
       await expect(sarah.page.getByText(/wrote this/).first()).toBeVisible({ timeout: 20_000 });
       await sarah.page.getByRole('button', { name: /Passer au vote de révélation/i }).click();
 
       // Two players: the screen says outright that a refusal identifies whoever made it.
-      await expect(sarah.page.getByText(/À savoir avant de choisir : à deux joueurs, un refus de révélation identifie directement celui qui a refusé\. Cela découle de la règle elle-même, alors autant le dire\./i)).toBeVisible();
+      await expect(
+        sarah.page.getByText(
+          /À savoir avant de choisir : à deux joueurs, un refus de révélation identifie directement celui qui a refusé\. Cela découle de la règle elle-même, alors autant le dire\./i,
+        ),
+      ).toBeVisible();
 
       for (const player of everyone) {
         await player.page.getByRole('button', { name: /Révéler les auteurs/i }).click();
       }
 
       for (const player of everyone) {
-        await expect(player.page.getByText(/Tout le monde est d’accord — les noms sont sur les textes ci-dessous\./i)).toBeVisible({ timeout: 20_000 });
+        await expect(
+          player.page.getByText(
+            /Tout le monde est d’accord — les noms sont sur les textes ci-dessous\./i,
+          ),
+        ).toBeVisible({ timeout: 20_000 });
         await expect(player.page.getByText(`Écrit par ${sarah.name}`)).toBeVisible();
         await expect(player.page.getByText(`Écrit par ${ahmed.name}`)).toBeVisible();
         await expect(player.page.getByText(/Qui a le mieux deviné/i)).toBeVisible();

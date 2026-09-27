@@ -34,9 +34,11 @@ export const createGroupsRepository = (db: DbClient) => ({
       data: {
         name,
         ownerId,
-        ...(inviteCode === undefined ? {} : {
-          invitations: { create: { code: inviteCode, createdById: ownerId } },
-        }),
+        ...(inviteCode === undefined
+          ? {}
+          : {
+              invitations: { create: { code: inviteCode, createdById: ownerId } },
+            }),
         memberships: {
           create: { userId: ownerId, role: GroupRole.OWNER, status: MembershipStatus.ACTIVE },
         },

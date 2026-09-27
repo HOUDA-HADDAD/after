@@ -9,12 +9,35 @@ describe('French authentication and submission', () => {
   it('sends one request for simultaneous submissions and shows a French credential error', async () => {
     let rejectLogin: (() => void) | undefined;
     const fetch = vi.fn((input: RequestInfo | URL) => {
-      if (String(input).endsWith('/auth/me')) return Promise.resolve(new Response(JSON.stringify({ code: 'UNAUTHENTICATED', status: 401, title: 'Anonymous' }), { status: 401 }));
-      return new Promise<Response>(resolve => { rejectLogin = () => resolve(new Response(JSON.stringify({ code: 'INVALID_CREDENTIALS', status: 401, title: 'Invalid credentials' }), { status: 401 })); });
+      if (String(input).endsWith('/auth/me'))
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({ code: 'UNAUTHENTICATED', status: 401, title: 'Anonymous' }),
+            { status: 401 },
+          ),
+        );
+      return new Promise<Response>((resolve) => {
+        rejectLogin = () =>
+          resolve(
+            new Response(
+              JSON.stringify({
+                code: 'INVALID_CREDENTIALS',
+                status: 401,
+                title: 'Invalid credentials',
+              }),
+              { status: 401 },
+            ),
+          );
+      });
     });
     vi.stubGlobal('fetch', fetch);
     localStorage.setItem('aftergame:locale', 'en');
-    renderWithProviders(<SessionProvider><LoginPage /></SessionProvider>, { fixedLocale: 'fr' });
+    renderWithProviders(
+      <SessionProvider>
+        <LoginPage />
+      </SessionProvider>,
+      { fixedLocale: 'fr' },
+    );
     const user = userEvent.setup();
     await user.type(screen.getByLabelText(/e-mail/i), 'person@example.com');
     await user.type(screen.getByLabelText(/^mot de passe/i, { selector: 'input' }), 'wrong');
@@ -29,8 +52,16 @@ describe('French authentication and submission', () => {
   });
 
   it('renders shared validation errors in French', async () => {
-    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(new Response('{}', { status: 401 }))));
-    renderWithProviders(<SessionProvider><LoginPage /></SessionProvider>, { fixedLocale: 'fr' });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.resolve(new Response('{}', { status: 401 }))),
+    );
+    renderWithProviders(
+      <SessionProvider>
+        <LoginPage />
+      </SessionProvider>,
+      { fixedLocale: 'fr' },
+    );
     await userEvent.setup().click(screen.getByRole('button', { name: 'Se connecter' }));
     expect(screen.getByText('Saisissez votre adresse e-mail')).toBeInTheDocument();
     expect(screen.getByText('Saisissez votre mot de passe')).toBeInTheDocument();
